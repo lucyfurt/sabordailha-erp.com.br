@@ -1,0 +1,309 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Autenticação ───────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          Role      @default(ATENDENTE)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  caixaMovs     CaixaMovimento[]
+  pedidos       Pedido[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+enum Role {
+  ADMIN
+  GERENTE
+  ATENDENTE
+  COZINHA
+}
+
+// ─── Produtos / Cardápio ─────────────────────────────────────────────────────
+
+model Categoria {
+  id        String    @id @default(cuid())
+  nome      String    @unique
+  descricao String?
+  icone     String?
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  produtos  Produto[]
+
+  @@map("categorias")
+}
+
+model Produto {
+  id            String   @id @default(cuid())
+  nome          String
+  descricao     String?
+  preco         Decimal  @db.Decimal(10, 2)
+  categoriaId   String
+  imagem        String?
+  ativo         Boolean  @default(true)
+  custoEstimado Decimal? @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  categoria     Categoria      @relation(fields: [categoriaId], references: [id])
+  itensPedido   ItemPedido[]
+  receitaItens  ReceitaItem[]
+
+  @@map("produtos")
+}
+
+// ─── Fornecedores ────────────────────────────────────────────────────────────
+
+model Fornecedor {
+  id        String   @id @default(cuid())
+  nome      String
+  cnpj      String?  @unique
+  telefone  String?
+  email     String?
+  endereco  String?
+  contato   String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  materiais    Material[]
+  compras      CaixaMovimento[]
+
+  @@map("fornecedores")
+}
+
+// ─── Estoque / Materiais ─────────────────────────────────────────────────────
+
+model Material {
+  id              String   @id @default(cuid())
+  nome            String
+  descricao       String?
+  unidade         String   // kg, L, un, cx, etc.
+  quantidadeAtual Decimal  @db.Decimal(10, 3) @default(0)
+  quantidadeMin   Decimal  @db.Decimal(10, 3) @default(0) // alerta de mínimo
+  custoUnitario   Decimal? @db.Decimal(10, 2)
+  fornecedorId    String?
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fornecedor    Fornecedor?    @relation(fields: [fornecedorId], references: [id])
+  movimentacoes EstoqueMovimento[]
+  receitaItens  ReceitaItem[]
+
+  @@map("materiais")
+}
+
+model EstoqueMovimento {
+  id          String          @id @default(cuid())
+  materialId  String
+  tipo        EstoqueTipo
+  quantidade  Decimal         @db.Decimal(10, 3)
+  motivo      String?
+  custoTotal  Decimal?        @db.Decimal(10, 2)
+  pedidoId    String?
+  createdAt   DateTime        @default(now())
+
+  material    Material        @relation(fields: [materialId], references: [id])
+  pedido      Pedido?         @relation(fields: [pedidoId], references: [id])
+
+  @@map("estoque_movimentos")
+}
+
+enum EstoqueTipo {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  PERDA
+}
+
+// ─── Receitas (ligação produto ↔ materiais) ───────────────────────────────
+
+model ReceitaItem {
+  id          String  @id @default(cuid())
+  produtoId   String
+  materialId  String
+  quantidade  Decimal @db.Decimal(10, 3)
+
+  produto     Produto  @relation(fields: [produtoId], references: [id])
+  material    Material @relation(fields: [materialId], references: [id])
+
+  @@unique([produtoId, materialId])
+  @@map("receita_itens")
+}
+
+// ─── Pedidos ─────────────────────────────────────────────────────────────────
+
+model Pedido {
+  id           String       @id @default(cuid())
+  numero       Int          @unique @default(autoincrement())
+  status       PedidoStatus @default(ABERTO)
+  mesa         String?
+  nomeCliente  String?
+  observacao   String?
+  total        Decimal      @db.Decimal(10, 2) @default(0)
+  desconto     Decimal      @db.Decimal(10, 2) @default(0)
+  formaPagto   FormaPagto?
+  atendidoPor  String?
+  userId       String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  fechadoEm    DateTime?
+
+  user         User?        @relation(fields: [userId], references: [id])
+  itens        ItemPedido[]
+  estoqueMovs  EstoqueMovimento[]
+
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id          String  @id @default(cuid())
+  pedidoId    String
+  produtoId   String
+  quantidade  Int
+  precoUnit   Decimal @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+  observacao  String?
+
+  pedido      Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto     Produto @relation(fields: [produtoId], references: [id])
+
+  @@map("itens_pedido")
+}
+
+enum PedidoStatus {
+  ABERTO
+  EM_PREPARO
+  PRONTO
+  ENTREGUE
+  CANCELADO
+  PAGO
+}
+
+enum FormaPagto {
+  DINHEIRO
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  PIX
+  VOUCHER
+  MISTO
+}
+
+// ─── Fluxo de Caixa ──────────────────────────────────────────────────────────
+
+model CaixaMovimento {
+  id            String          @id @default(cuid())
+  tipo          CaixaTipo
+  categoria     CaixaCategoria
+  descricao     String
+  valor         Decimal         @db.Decimal(10, 2)
+  formaPagto    FormaPagto?
+  fornecedorId  String?
+  pedidoId      String?
+  referencia    String?         // número de nota, recibo, etc.
+  userId        String
+  observacao    String?
+  dataMovimento DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+
+  user          User            @relation(fields: [userId], references: [id])
+  fornecedor    Fornecedor?     @relation(fields: [fornecedorId], references: [id])
+
+  @@map("caixa_movimentos")
+}
+
+enum CaixaTipo {
+  ENTRADA
+  SAIDA
+}
+
+enum CaixaCategoria {
+  VENDA
+  COMPRA_MATERIAL
+  SALARIO
+  ALUGUEL
+  AGUA
+  LUZ
+  GAS
+  MANUTENCAO
+  MARKETING
+  OUTROS_ENTRADA
+  OUTROS_SAIDA
+}
+
+// ─── Metas ───────────────────────────────────────────────────────────────────
+
+model Meta {
+  id         String    @id @default(cuid())
+  tipo       MetaTipo
+  valor      Decimal   @db.Decimal(10, 2)
+  periodo    String    // "2024-11", "2024-W45", "2024-11-04"
+  descricao  String?
+  createdAt  DateTime  @default(now())
+
+  @@unique([tipo, periodo])
+  @@map("metas")
+}
+
+enum MetaTipo {
+  FATURAMENTO_DIARIO
+  FATURAMENTO_SEMANAL
+  FATURAMENTO_MENSAL
+}
