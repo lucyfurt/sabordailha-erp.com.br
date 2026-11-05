@@ -107,10 +107,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 p-3 bg-orange-50 rounded-md text-center">
-              <p className="text-xs text-orange-700 font-medium">Demo</p>
-              <p className="text-xs text-orange-600">admin@saborilha.com / admin123</p>
-            </div>
           </CardContent>
         </Card>
       </div>
