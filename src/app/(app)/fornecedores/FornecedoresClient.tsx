@@ -97,7 +97,7 @@ export function FornecedoresClient() {
       ) : fornecedores.length === 0 ? (
         <p className="text-center py-10 text-gray-400">Nenhum fornecedor cadastrado</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {fornecedores.map((forn) => (
             <Card key={forn.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">

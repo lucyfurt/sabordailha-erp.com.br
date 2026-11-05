@@ -40,11 +40,11 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-orange-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-orange-500 mb-4 shadow-lg">
-            <Waves className="h-8 w-8 text-white" />
+        <div className="flex flex-col items-center mb-6 md:mb-8">
+          <div className="flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full bg-orange-500 mb-3 md:mb-4 shadow-lg">
+            <Waves className="h-7 w-7 md:h-8 md:w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Sabor da Ilha</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Sabor da Ilha</h1>
           <p className="text-slate-400 text-sm mt-1">Sistema de Gestão</p>
         </div>
 

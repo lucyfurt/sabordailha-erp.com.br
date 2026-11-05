@@ -114,13 +114,23 @@ export function PedidosClient() {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-2 flex-wrap">
+      <div className="flex flex-col gap-3">
+        {/* Botões de ação */}
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={fetchPedidos}>
+            <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
+          </Button>
+          <Button size="sm" onClick={() => setOpenNovo(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Novo Pedido
+          </Button>
+        </div>
+        {/* Filtros de status com scroll horizontal no mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {["", "ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "PAGO", "CANCELADO"].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFiltro(s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap flex-shrink-0 ${
                 statusFiltro === s
                   ? "bg-orange-500 text-white border-orange-500"
                   : "bg-white text-gray-600 border-gray-200 hover:border-orange-300"
@@ -129,14 +139,6 @@ export function PedidosClient() {
               {s === "" ? "Todos" : PEDIDO_STATUS_LABELS[s]}
             </button>
           ))}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchPedidos}>
-            <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
-          </Button>
-          <Button size="sm" onClick={() => setOpenNovo(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Novo Pedido
-          </Button>
         </div>
       </div>
 
@@ -174,12 +176,13 @@ export function PedidosClient() {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <div>
+                <div className="flex flex-col gap-2 pt-2 border-t">
+                  <div className="flex items-center justify-between">
                     <span className="font-bold text-gray-900">{formatCurrency(Number(pedido.total))}</span>
                     <p className="text-xs text-gray-400">{formatDateTime(pedido.createdAt)}</p>
                   </div>
-                  <div className="flex gap-1">
+                  {/* Ações — empilhadas no mobile */}
+                  <div className="flex flex-wrap gap-1">
                     {(STATUS_ACTIONS[pedido.status] || []).map((action) => (
                       <button
                         key={action.next}
@@ -190,7 +193,7 @@ export function PedidosClient() {
                             mudarStatus(pedido.id, action.next);
                           }
                         }}
-                        className={`px-2.5 py-1.5 rounded-md text-white text-xs font-medium flex items-center gap-1 ${action.color}`}
+                        className={`flex-1 min-w-[100px] px-2.5 py-2 rounded-md text-white text-xs font-medium flex items-center justify-center gap-1 ${action.color}`}
                       >
                         <action.icon className="h-3 w-3" />
                         {action.label}
@@ -212,7 +215,7 @@ export function PedidosClient() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Mesa</Label>
                 <Input

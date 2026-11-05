@@ -120,71 +120,75 @@ export function EstoqueClient() {
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Stats — 3 colunas compactas no mobile */}
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <Settings2 className="h-5 w-5 text-blue-600" />
+          <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-blue-50 rounded-lg flex-shrink-0">
+              <Settings2 className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Total de Itens</p>
-              <p className="text-xl font-bold">{stats.total}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 truncate">Total</p>
+              <p className="text-lg md:text-xl font-bold">{stats.total}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-red-50 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+          <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-red-50 rounded-lg flex-shrink-0">
+              <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-red-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Estoque Crítico</p>
-              <p className="text-xl font-bold text-red-600">{stats.criticos}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 truncate">Crítico</p>
+              <p className="text-lg md:text-xl font-bold text-red-600">{stats.criticos}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 bg-green-50 rounded-lg">
-              <ArrowUp className="h-5 w-5 text-green-600" />
+          <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-green-50 rounded-lg flex-shrink-0">
+              <ArrowUp className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500">Valor em Estoque</p>
-              <p className="text-xl font-bold">{formatCurrency(stats.valorTotal)}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 truncate">Valor</p>
+              <p className="text-base md:text-xl font-bold truncate">{formatCurrency(stats.valorTotal)}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Buscar material..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 w-full"
           />
         </div>
-        <button
-          onClick={() => setSomenteCritico(!somenteCritico)}
-          className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-            somenteCritico
-              ? "bg-red-500 text-white border-red-500"
-              : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
-          }`}
-        >
-          <AlertTriangle className="h-4 w-4 inline mr-1" />
-          Somente Críticos
-        </button>
-        <Button onClick={() => setOpenNovo(true)}>
-          <Plus className="h-4 w-4 mr-1" /> Novo Material
-        </Button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSomenteCritico(!somenteCritico)}
+            className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              somenteCritico
+                ? "bg-red-500 text-white border-red-500"
+                : "bg-white text-gray-600 border-gray-200 hover:border-red-300"
+            }`}
+          >
+            <AlertTriangle className="h-4 w-4 inline mr-1" />
+            Críticos
+          </button>
+          <Button onClick={() => setOpenNovo(true)} className="flex-1 sm:flex-none">
+            <Plus className="h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">Novo Material</span>
+            <span className="sm:hidden">Novo</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Tabela */}
+      {/* Tabela — scroll horizontal + colunas ocultas no mobile */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -192,76 +196,100 @@ export function EstoqueClient() {
           ) : materiais.length === 0 ? (
             <p className="text-center py-10 text-gray-400">Nenhum material encontrado</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Material</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Qtd. Atual</TableHead>
-                  <TableHead>Qtd. Mínima</TableHead>
-                  <TableHead>Custo Unit.</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {materiais.map((mat) => (
-                  <TableRow key={mat.id} className={isCritico(mat) ? "bg-red-50" : ""}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{mat.nome}</p>
-                        {mat.descricao && <p className="text-xs text-gray-400">{mat.descricao}</p>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {mat.fornecedor?.nome || "-"}
-                    </TableCell>
-                    <TableCell className="text-sm">{mat.unidade}</TableCell>
-                    <TableCell>
-                      <span className={`font-semibold ${isCritico(mat) ? "text-red-600" : "text-gray-900"}`}>
-                        {Number(mat.quantidadeAtual).toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {Number(mat.quantidadeMin).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {mat.custoUnitario ? formatCurrency(Number(mat.custoUnitario)) : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {isCritico(mat) ? (
-                        <Badge variant="destructive" className="text-xs">
-                          <AlertTriangle className="h-3 w-3 mr-1" /> Crítico
-                        </Badge>
-                      ) : (
-                        <Badge variant="success" className="text-xs">OK</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-600 border-green-200 hover:bg-green-50 text-xs"
-                          onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "" }); }}
-                        >
-                          <ArrowUp className="h-3 w-3 mr-1" /> Entrada
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
-                          onClick={() => { setOpenMov(mat); setMovForm({ tipo: "SAIDA", quantidade: "", motivo: "", custoTotal: "" }); }}
-                        >
-                          <ArrowDown className="h-3 w-3 mr-1" /> Saída
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Material</TableHead>
+                    <TableHead className="hidden md:table-cell">Fornecedor</TableHead>
+                    <TableHead>Un.</TableHead>
+                    <TableHead>Atual</TableHead>
+                    <TableHead className="hidden sm:table-cell">Mínimo</TableHead>
+                    <TableHead className="hidden lg:table-cell">Custo</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {materiais.map((mat) => (
+                    <TableRow key={mat.id} className={isCritico(mat) ? "bg-red-50" : ""}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{mat.nome}</p>
+                          {mat.descricao && (
+                            <p className="text-xs text-gray-400 hidden sm:block">{mat.descricao}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500 hidden md:table-cell">
+                        {mat.fornecedor?.nome || "-"}
+                      </TableCell>
+                      <TableCell className="text-sm">{mat.unidade}</TableCell>
+                      <TableCell>
+                        <span className={`font-semibold text-sm ${isCritico(mat) ? "text-red-600" : "text-gray-900"}`}>
+                          {Number(mat.quantidadeAtual).toFixed(2)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500 hidden sm:table-cell">
+                        {Number(mat.quantidadeMin).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-sm hidden lg:table-cell">
+                        {mat.custoUnitario ? formatCurrency(Number(mat.custoUnitario)) : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {isCritico(mat) ? (
+                          <Badge variant="destructive" className="text-xs whitespace-nowrap">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            <span className="hidden sm:inline">Crítico</span>
+                            <span className="sm:hidden">!</span>
+                          </Badge>
+                        ) : (
+                          <Badge variant="success" className="text-xs">OK</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {/* Desktop: botões com texto */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="hidden sm:flex text-green-600 border-green-200 hover:bg-green-50 text-xs"
+                            onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "" }); }}
+                          >
+                            <ArrowUp className="h-3 w-3 mr-1" /> Entrada
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="hidden sm:flex text-red-600 border-red-200 hover:bg-red-50 text-xs"
+                            onClick={() => { setOpenMov(mat); setMovForm({ tipo: "SAIDA", quantidade: "", motivo: "", custoTotal: "" }); }}
+                          >
+                            <ArrowDown className="h-3 w-3 mr-1" /> Saída
+                          </Button>
+                          {/* Mobile: apenas ícones */}
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="sm:hidden h-8 w-8 text-green-600 border-green-200"
+                            onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "" }); }}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="sm:hidden h-8 w-8 text-red-600 border-red-200"
+                            onClick={() => { setOpenMov(mat); setMovForm({ tipo: "SAIDA", quantidade: "", motivo: "", custoTotal: "" }); }}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -281,7 +309,7 @@ export function EstoqueClient() {
               <Label>Descrição</Label>
               <Input value={novoForm.descricao} onChange={(e) => setNovoForm((f) => ({ ...f, descricao: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Unidade *</Label>
                 <Select value={novoForm.unidade} onValueChange={(v) => setNovoForm((f) => ({ ...f, unidade: v }))}>
@@ -302,7 +330,7 @@ export function EstoqueClient() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Custo Unitário (R$)</Label>
                 <Input

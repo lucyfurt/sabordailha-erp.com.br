@@ -115,14 +115,15 @@ export function UsuariosClient() {
           {loading ? (
             <p className="text-center py-10 text-gray-400">Carregando...</p>
           ) : (
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead className="hidden sm:table-cell">Email</TableHead>
                   <TableHead>Perfil</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Criado em</TableHead>
+                  <TableHead className="hidden md:table-cell">Criado em</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -134,10 +135,13 @@ export function UsuariosClient() {
                         <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
                           {user.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="font-medium text-sm">{user.name}</span>
+                        <div className="min-w-0">
+                          <span className="font-medium text-sm block truncate">{user.name}</span>
+                          <span className="text-xs text-gray-400 sm:hidden block truncate">{user.email}</span>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-500">{user.email}</TableCell>
+                    <TableCell className="text-sm text-gray-500 hidden sm:table-cell">{user.email}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${roleColors[user.role] || "bg-gray-100 text-gray-600"}`}>
                         {ROLE_LABELS[user.role] || user.role}
@@ -148,7 +152,7 @@ export function UsuariosClient() {
                         {user.active ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-gray-400">
+                    <TableCell className="text-xs text-gray-400 hidden md:table-cell">
                       {formatDate(user.createdAt)}
                     </TableCell>
                     <TableCell>
@@ -170,6 +174,7 @@ export function UsuariosClient() {
                 ))}
               </TableBody>
             </Table>
+          </div>
           )}
         </CardContent>
       </Card>

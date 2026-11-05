@@ -96,44 +96,44 @@ export function CaixaClient() {
 
   return (
     <div className="space-y-6">
-      {/* Resumo Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Resumo Cards — 3 colunas no mobile também, compacto */}
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 md:p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
               <div>
-                <p className="text-sm text-gray-500">Total Entradas</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(resumo.entradas)}</p>
+                <p className="text-xs text-gray-500">Entradas</p>
+                <p className="text-base md:text-2xl font-bold text-green-600">{formatCurrency(resumo.entradas)}</p>
               </div>
-              <div className="p-3 bg-green-50 rounded-full">
+              <div className="hidden md:flex p-3 bg-green-50 rounded-full">
                 <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 md:p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
               <div>
-                <p className="text-sm text-gray-500">Total Saídas</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(resumo.saidas)}</p>
+                <p className="text-xs text-gray-500">Saídas</p>
+                <p className="text-base md:text-2xl font-bold text-red-600">{formatCurrency(resumo.saidas)}</p>
               </div>
-              <div className="p-3 bg-red-50 rounded-full">
+              <div className="hidden md:flex p-3 bg-red-50 rounded-full">
                 <TrendingDown className="h-5 w-5 text-red-600" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-3 md:p-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
               <div>
-                <p className="text-sm text-gray-500">Saldo do Período</p>
-                <p className={`text-2xl font-bold ${resumo.saldo >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                <p className="text-xs text-gray-500">Saldo</p>
+                <p className={`text-base md:text-2xl font-bold ${resumo.saldo >= 0 ? "text-blue-600" : "text-red-600"}`}>
                   {formatCurrency(resumo.saldo)}
                 </p>
               </div>
-              <div className={`p-3 rounded-full ${resumo.saldo >= 0 ? "bg-blue-50" : "bg-red-50"}`}>
+              <div className={`hidden md:flex p-3 rounded-full ${resumo.saldo >= 0 ? "bg-blue-50" : "bg-red-50"}`}>
                 <DollarSign className={`h-5 w-5 ${resumo.saldo >= 0 ? "text-blue-600" : "text-red-600"}`} />
               </div>
             </div>
@@ -142,47 +142,53 @@ export function CaixaClient() {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-3 items-end bg-white p-4 rounded-lg border">
-        <div>
-          <Label className="text-xs">Data Início</Label>
-          <Input
-            type="date"
-            value={filtroInicio}
-            onChange={(e) => setFiltroInicio(e.target.value)}
-            className="w-36"
-          />
+      <div className="flex flex-col gap-3 bg-white p-4 rounded-lg border">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">Data Início</Label>
+            <Input
+              type="date"
+              value={filtroInicio}
+              onChange={(e) => setFiltroInicio(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Data Fim</Label>
+            <Input
+              type="date"
+              value={filtroFim}
+              onChange={(e) => setFiltroFim(e.target.value)}
+              className="w-full"
+            />
+          </div>
         </div>
-        <div>
-          <Label className="text-xs">Data Fim</Label>
-          <Input
-            type="date"
-            value={filtroFim}
-            onChange={(e) => setFiltroFim(e.target.value)}
-            className="w-36"
-          />
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <Label className="text-xs">Tipo</Label>
+            <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="ENTRADA">Entradas</SelectItem>
+                <SelectItem value="SAIDA">Saídas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={fetchMovimentos} variant="outline">
+            <Filter className="h-4 w-4 mr-1" /> Filtrar
+          </Button>
+          <Button onClick={() => setOpenNovo(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">Novo Lançamento</span>
+            <span className="sm:hidden">Novo</span>
+          </Button>
         </div>
-        <div>
-          <Label className="text-xs">Tipo</Label>
-          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
-              <SelectItem value="ENTRADA">Entradas</SelectItem>
-              <SelectItem value="SAIDA">Saídas</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={fetchMovimentos} variant="outline">
-          <Filter className="h-4 w-4 mr-1" /> Filtrar
-        </Button>
-        <Button onClick={() => setOpenNovo(true)} className="ml-auto">
-          <Plus className="h-4 w-4 mr-1" /> Novo Lançamento
-        </Button>
       </div>
 
-      {/* Tabela */}
+      {/* Tabela — scroll horizontal no mobile */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -190,53 +196,56 @@ export function CaixaClient() {
           ) : movimentos.length === 0 ? (
             <p className="text-center py-10 text-gray-400">Nenhum movimento no período</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data/Hora</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {movimentos.map((mov) => (
-                  <TableRow key={mov.id}>
-                    <TableCell className="text-xs text-gray-500">
-                      {formatDateTime(mov.dataMovimento)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={mov.tipo === "ENTRADA" ? "success" : "destructive"}>
-                        {mov.tipo === "ENTRADA" ? "↑ Entrada" : "↓ Saída"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{CATEGORIAS_LABELS[mov.categoria]}</TableCell>
-                    <TableCell className="text-sm max-w-[200px] truncate">{mov.descricao}</TableCell>
-                    <TableCell className="text-xs text-gray-500">
-                      {mov.formaPagto ? FORMA_PAGTO_LABELS[mov.formaPagto] : "-"}
-                    </TableCell>
-                    <TableCell className={`font-semibold ${mov.tipo === "ENTRADA" ? "text-green-600" : "text-red-600"}`}>
-                      {mov.tipo === "ENTRADA" ? "+" : "-"}{formatCurrency(Number(mov.valor))}
-                    </TableCell>
-                    <TableCell className="text-xs text-gray-500">{mov.user?.name}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-400 hover:text-red-600"
-                        onClick={() => excluirMovimento(mov.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead className="hidden sm:table-cell">Categoria</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead className="hidden md:table-cell">Pagamento</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead className="hidden lg:table-cell">Usuário</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {movimentos.map((mov) => (
+                    <TableRow key={mov.id}>
+                      <TableCell className="text-xs text-gray-500 whitespace-nowrap">
+                        {formatDateTime(mov.dataMovimento)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={mov.tipo === "ENTRADA" ? "success" : "destructive"}>
+                          {mov.tipo === "ENTRADA" ? "↑" : "↓"}
+                          <span className="hidden sm:inline ml-1">{mov.tipo === "ENTRADA" ? "Entrada" : "Saída"}</span>
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm hidden sm:table-cell">{CATEGORIAS_LABELS[mov.categoria]}</TableCell>
+                      <TableCell className="text-sm max-w-[140px] truncate">{mov.descricao}</TableCell>
+                      <TableCell className="text-xs text-gray-500 hidden md:table-cell">
+                        {mov.formaPagto ? FORMA_PAGTO_LABELS[mov.formaPagto] : "-"}
+                      </TableCell>
+                      <TableCell className={`font-semibold whitespace-nowrap ${mov.tipo === "ENTRADA" ? "text-green-600" : "text-red-600"}`}>
+                        {mov.tipo === "ENTRADA" ? "+" : "-"}{formatCurrency(Number(mov.valor))}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-500 hidden lg:table-cell">{mov.user?.name}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-400 hover:text-red-600"
+                          onClick={() => excluirMovimento(mov.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -288,7 +297,7 @@ export function CaixaClient() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Valor (R$) *</Label>
                 <Input

@@ -14,7 +14,8 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      {/* Padding-top no mobile para não ficar atrás do botão hambúrguer */}
+      <main className="flex-1 overflow-auto min-w-0 pt-16 md:pt-0">
         {children}
       </main>
     </div>

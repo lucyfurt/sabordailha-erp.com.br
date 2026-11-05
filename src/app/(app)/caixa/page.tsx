@@ -5,7 +5,7 @@ export default function CaixaPage() {
   return (
     <div className="flex flex-col h-full">
       <Header title="Fluxo de Caixa" subtitle="Controle de entradas e saídas financeiras" />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-3 md:p-6">
         <CaixaClient />
       </div>
     </div>
