@@ -209,6 +209,24 @@ export function ProdutosClient() {
     }
   }
 
+  // ── Remover produto ──
+  const [confirmDeleteProd, setConfirmDeleteProd] = useState<Produto | null>(null);
+  const [removendoProd, setRemovendoProd] = useState(false);
+
+  async function removerProduto() {
+    if (!confirmDeleteProd) return;
+    setRemovendoProd(true);
+    const res = await fetch(`/api/produtos/${confirmDeleteProd.id}`, { method: "DELETE" });
+    setRemovendoProd(false);
+    if (res.ok) {
+      setConfirmDeleteProd(null);
+      fetchProdutos();
+    } else {
+      const err = await res.json();
+      alert(err.error || "Erro ao remover produto");
+    }
+  }
+
   // ── Agrupamento por categoria ──
   const grupos = categorias.reduce((acc, cat) => {
     const prods = produtos.filter((p) => p.categoria.id === cat.id);
@@ -341,6 +359,15 @@ export function ProdutosClient() {
                                 {produto.ativo
                                   ? <ToggleRight className="h-4 w-4" />
                                   : <ToggleLeft className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-gray-400 hover:text-red-600"
+                                onClick={() => setConfirmDeleteProd(produto)}
+                                title="Remover produto"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
@@ -492,6 +519,31 @@ export function ProdutosClient() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenProdForm(false)}>Cancelar</Button>
             <Button onClick={salvarProduto}>{editandoProd ? "Salvar" : "Criar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal Confirmar Remoção de Produto ───────────────────────────── */}
+      <Dialog open={!!confirmDeleteProd} onOpenChange={() => setConfirmDeleteProd(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover Produto</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+            <p className="text-sm text-red-700">
+              Tem certeza que deseja remover{" "}
+              <strong>{confirmDeleteProd?.nome}</strong>?
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteProd(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={removerProduto} disabled={removendoProd}>
+              <Trash2 className="h-4 w-4 mr-1" />
+              {removendoProd ? "Removendo..." : "Remover"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
