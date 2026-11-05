@@ -40,17 +40,17 @@ export function RelatoriosClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Seletor de período */}
-      <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded-lg border">
-        <div>
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end bg-white p-4 rounded-lg border">
+        <div className="flex-1">
           <Label className="text-xs">Período</Label>
           <div className="flex gap-1 mt-1">
             {["DIARIO", "SEMANAL", "MENSAL"].map((t) => (
               <button
                 key={t}
                 onClick={() => setTipo(t)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                className={`flex-1 px-2 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
                   tipo === t ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
@@ -65,13 +65,13 @@ export function RelatoriosClient() {
             type="date"
             value={dataRef}
             onChange={(e) => setDataRef(e.target.value)}
-            className="w-44 mt-1"
+            className="w-full sm:w-44 mt-1"
           />
         </div>
         {data && (
-          <div className="ml-auto text-right">
+          <div className="sm:ml-auto text-left sm:text-right">
             <p className="text-xs text-gray-500">Período</p>
-            <p className="font-semibold text-gray-800 capitalize">{renderPeriodoLabel()}</p>
+            <p className="font-semibold text-gray-800 capitalize text-sm">{renderPeriodoLabel()}</p>
           </div>
         )}
       </div>
@@ -80,8 +80,8 @@ export function RelatoriosClient() {
         <div className="flex items-center justify-center h-64 text-gray-400">Carregando relatório...</div>
       ) : (
         <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* KPIs — 2 colunas no mobile, 3 no md, 5 no lg */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-4">
             {[
               {
                 label: "Faturamento",
@@ -120,26 +120,29 @@ export function RelatoriosClient() {
               },
             ].map((kpi) => (
               <Card key={kpi.label}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-gray-500">{kpi.label}</p>
-                    <div className={`p-1.5 rounded-lg ${kpi.bg}`}>
-                      <kpi.icon className={`h-3.5 w-3.5 ${kpi.color}`} />
+                <CardContent className="p-3 md:p-4">
+                  <div className="flex items-center justify-between mb-1 md:mb-2">
+                    <p className="text-xs text-gray-500 leading-tight">{kpi.label}</p>
+                    <div className={`p-1 md:p-1.5 rounded-lg ${kpi.bg} flex-shrink-0`}>
+                      <kpi.icon className={`h-3 w-3 md:h-3.5 md:w-3.5 ${kpi.color}`} />
                     </div>
                   </div>
-                  <p className={`text-lg font-bold ${kpi.color}`}>{kpi.value}</p>
+                  <p className={`text-sm md:text-lg font-bold ${kpi.color} truncate`}>{kpi.value}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
 
           <Tabs defaultValue="grafico">
-            <TabsList>
-              <TabsTrigger value="grafico">Gráfico Financeiro</TabsTrigger>
-              <TabsTrigger value="produtos">Top Produtos</TabsTrigger>
-              <TabsTrigger value="pagamentos">Formas de Pagamento</TabsTrigger>
-              <TabsTrigger value="despesas">Despesas</TabsTrigger>
-            </TabsList>
+            {/* TabsList com scroll horizontal no mobile */}
+            <div className="overflow-x-auto -mx-1 px-1">
+              <TabsList className="w-max min-w-full sm:w-full">
+                <TabsTrigger value="grafico" className="text-xs sm:text-sm flex-1">Financeiro</TabsTrigger>
+                <TabsTrigger value="produtos" className="text-xs sm:text-sm flex-1">Produtos</TabsTrigger>
+                <TabsTrigger value="pagamentos" className="text-xs sm:text-sm flex-1">Pagamentos</TabsTrigger>
+                <TabsTrigger value="despesas" className="text-xs sm:text-sm flex-1">Despesas</TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Gráfico de Entradas x Saídas */}
             <TabsContent value="grafico">
@@ -148,8 +151,8 @@ export function RelatoriosClient() {
                   <CardTitle className="text-base">Entradas × Saídas por Dia</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={data.grafico} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={data.grafico} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -224,7 +227,7 @@ export function RelatoriosClient() {
                   {data.formasPagto.length === 0 ? (
                     <p className="text-center text-gray-400 py-8">Sem dados de pagamento</p>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <ResponsiveContainer width="100%" height={260}>
                         <PieChart>
                           <Pie

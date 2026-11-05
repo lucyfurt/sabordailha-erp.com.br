@@ -22,46 +22,24 @@ async function getDashboardData() {
     fluxoHoje,
     topProdutos,
   ] = await Promise.all([
-    // Faturamento hoje (movimentos de venda)
     prisma.caixaMovimento.aggregate({
-      where: {
-        tipo: "ENTRADA",
-        categoria: "VENDA",
-        dataMovimento: { gte: todayStart, lte: todayEnd },
-      },
+      where: { tipo: "ENTRADA", categoria: "VENDA", dataMovimento: { gte: todayStart, lte: todayEnd } },
       _sum: { valor: true },
     }),
-
-    // Faturamento do mês
     prisma.caixaMovimento.aggregate({
-      where: {
-        tipo: "ENTRADA",
-        categoria: "VENDA",
-        dataMovimento: { gte: monthStart, lte: monthEnd },
-      },
+      where: { tipo: "ENTRADA", categoria: "VENDA", dataMovimento: { gte: monthStart, lte: monthEnd } },
       _sum: { valor: true },
     }),
-
-    // Pedidos de hoje
     prisma.pedido.count({
-      where: {
-        createdAt: { gte: todayStart, lte: todayEnd },
-        status: { not: "CANCELADO" },
-      },
+      where: { createdAt: { gte: todayStart, lte: todayEnd }, status: { not: "CANCELADO" } },
     }),
-
-    // Pedidos em aberto/em preparo
     prisma.pedido.count({
       where: { status: { in: ["ABERTO", "EM_PREPARO"] } },
     }),
-
-    // Materiais abaixo do mínimo (buscar todos ativos e filtrar no JS)
     prisma.material.findMany({
       where: { ativo: true },
       select: { id: true, nome: true, quantidadeAtual: true, quantidadeMin: true, unidade: true },
     }),
-
-    // Últimos pedidos
     prisma.pedido.findMany({
       take: 8,
       orderBy: { createdAt: "desc" },
@@ -70,23 +48,16 @@ async function getDashboardData() {
         user: { select: { name: true } },
       },
     }),
-
-    // Fluxo financeiro hoje
     prisma.caixaMovimento.findMany({
       where: { dataMovimento: { gte: todayStart, lte: todayEnd } },
       orderBy: { dataMovimento: "desc" },
       take: 10,
       include: { user: { select: { name: true } } },
     }),
-
-    // Top produtos hoje
     prisma.itemPedido.groupBy({
       by: ["produtoId"],
       where: {
-        pedido: {
-          createdAt: { gte: todayStart, lte: todayEnd },
-          status: { not: "CANCELADO" },
-        },
+        pedido: { createdAt: { gte: todayStart, lte: todayEnd }, status: { not: "CANCELADO" } },
       },
       _sum: { quantidade: true, subtotal: true },
       orderBy: { _sum: { quantidade: "desc" } },
@@ -94,7 +65,6 @@ async function getDashboardData() {
     }),
   ]);
 
-  // Buscar nomes dos top produtos
   const produtoIds = topProdutos.map((p) => p.produtoId);
   const produtos = await prisma.produto.findMany({
     where: { id: { in: produtoIds } },
@@ -102,18 +72,12 @@ async function getDashboardData() {
   });
   const produtoMap = Object.fromEntries(produtos.map((p) => [p.id, p.nome]));
 
-  // Saídas de caixa hoje
   const saidasHoje = await prisma.caixaMovimento.aggregate({
-    where: {
-      tipo: "SAIDA",
-      dataMovimento: { gte: todayStart, lte: todayEnd },
-    },
+    where: { tipo: "SAIDA", dataMovimento: { gte: todayStart, lte: todayEnd } },
     _sum: { valor: true },
   });
 
-  // Filtrar materiais críticos no JS (Prisma não suporta comparação entre duas colunas diretamente)
-  const todosMateriais = materiaisAbaixoMin;
-  const criticos = todosMateriais
+  const criticos = materiaisAbaixoMin
     .filter((m) => Number(m.quantidadeAtual) <= Number(m.quantidadeMin))
     .slice(0, 5);
 
@@ -144,7 +108,7 @@ export default async function DashboardPage() {
         title={`Olá, ${session?.user?.name?.split(" ")[0]} 👋`}
         subtitle="Aqui está o resumo do dia"
       />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-3 md:p-6">
         <DashboardClient data={data} />
       </div>
     </div>

@@ -5,7 +5,7 @@ export default function FornecedoresPage() {
   return (
     <div className="flex flex-col h-full">
       <Header title="Fornecedores" subtitle="Cadastro de fornecedores de materiais" />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-3 md:p-6">
         <FornecedoresClient />
       </div>
     </div>
