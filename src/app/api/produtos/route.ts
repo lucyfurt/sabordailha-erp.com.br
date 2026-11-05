@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
   const where: any = {};
   if (categoriaId) where.categoriaId = categoriaId;
   if (search) where.nome = { contains: search, mode: "insensitive" };
-  if (ativo !== null && ativo !== undefined) where.ativo = ativo === "true";
+  // Por padrão mostra só ativos; passa ?ativo=false para ver inativos
+  where.ativo = ativo === "false" ? false : true;
 
   const produtos = await prisma.produto.findMany({
     where,
