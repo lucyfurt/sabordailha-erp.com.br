@@ -36,9 +36,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  await prisma.produto.update({
-    where: { id: params.id },
-    data: { ativo: false },
-  });
-  return NextResponse.json({ success: true });
+  try {
+    await prisma.produto.delete({ where: { id: params.id } });
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Erro ao remover produto" }, { status: 500 });
+  }
 }
