@@ -48,3 +48,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: err.message || "Erro ao atualizar" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+
+  try {
+    // Soft delete — apenas desativa o material
+    await prisma.material.update({
+      where: { id: params.id },
+      data: { ativo: false },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Erro ao remover" }, { status: 500 });
+  }
+}
