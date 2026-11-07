@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard } from "lucide-react";
+import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +95,18 @@ export function PedidosClient() {
     });
     setOpenPagto(null);
     fetchPedidos();
+  }
+
+  async function removerPedido(pedidoId: string) {
+    if (!confirm("Tem certeza que deseja remover este pedido? Esta ação não pode ser desfeita.")) return;
+    const res = await fetch(`/api/pedidos/${pedidoId}`, { method: "DELETE" });
+    if (res.ok) {
+      // Remove o pedido da lista localmente para feedback imediato
+      setPedidos((prev) => prev.filter((p) => p.id !== pedidoId));
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Erro ao remover pedido");
+    }
   }
 
   const addItem = () =>
@@ -200,6 +212,15 @@ export function PedidosClient() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Remover pedido */}
+                  <button
+                    onClick={() => removerPedido(pedido.id)}
+                    className="w-full px-2.5 py-2 rounded-md text-red-600 hover:bg-red-50 border border-red-200 text-xs font-medium flex items-center justify-center gap-1"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Remover
+                  </button>
                 </div>
               </CardContent>
             </Card>

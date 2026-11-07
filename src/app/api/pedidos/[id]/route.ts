@@ -86,13 +86,19 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   const pedido = await prisma.pedido.findUnique({ where: { id: params.id } });
   if (!pedido) return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
   if (pedido.status === "PAGO") {
-    return NextResponse.json({ error: "Não é possível cancelar um pedido já pago" }, { status: 400 });
+    return NextResponse.json({ error: "Não é possível remover um pedido já pago" }, { status: 400 });
   }
 
-  await prisma.pedido.update({
-    where: { id: params.id },
-    data: { status: "CANCELADO" },
-  });
+  // Remove o pedido e seus vínculos em uma transação.
+  // - Itens são apagados (cascade no schema).
+  // - Movimentos de estoque vinculados têm o pedidoId zerado (relação opcional).
+  // - Movimentos de caixa vinculados têm o pedidoId zerado para não ficar órfão.
+  await prisma.$transaction([
+    prisma.itemPedido.deleteMany({ where: { pedidoId: params.id } }),
+    prisma.estoqueMovimento.updateMany({ where: { pedidoId: params.id }, data: { pedidoId: null } }),
+    prisma.caixaMovimento.updateMany({ where: { pedidoId: params.id }, data: { pedidoId: null } }),
+    prisma.pedido.delete({ where: { id: params.id } }),
+  ]);
 
   return NextResponse.json({ success: true });
 }
