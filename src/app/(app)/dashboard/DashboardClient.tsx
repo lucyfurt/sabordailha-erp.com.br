@@ -201,7 +201,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     <div className="text-sm font-bold text-gray-700 flex-shrink-0">#{pedido.numero}</div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {pedido.nomeCliente || (pedido.mesa ? `Mesa ${pedido.mesa}` : "Sem id.")}
+                        {pedido.nomeCliente || "Sem id."}
                       </p>
                       <p className="text-xs text-gray-400 hidden sm:block">
                         {pedido.itens.length} item(s) • {formatDateTime(pedido.createdAt)}

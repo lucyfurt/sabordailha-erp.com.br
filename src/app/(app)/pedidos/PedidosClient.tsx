@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2 } from "lucide-react";
+import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatCurrency, formatDateTime, PEDIDO_STATUS_LABELS,
-  PEDIDO_STATUS_COLORS, FORMA_PAGTO_LABELS,
+  PEDIDO_STATUS_COLORS, FORMA_PAGTO_LABELS, TIPO_PEDIDO_LABELS,
 } from "@/lib/utils";
 
 type Produto = { id: string; nome: string; preco: number; categoria: { nome: string } };
@@ -36,6 +36,10 @@ const STATUS_ACTIONS: Record<string, { label: string; next: string; icon: any; c
   ],
   ENTREGUE: [
     { label: "Registrar Pagamento", next: "PAGO", icon: CreditCard, color: "bg-emerald-500 hover:bg-emerald-600" },
+    { label: "Pagamento Pendente", next: "PAGAMENTO_PENDENTE", icon: Clock, color: "bg-amber-500 hover:bg-amber-600" },
+  ],
+  PAGAMENTO_PENDENTE: [
+    { label: "Registrar Pagamento", next: "PAGO", icon: CreditCard, color: "bg-emerald-500 hover:bg-emerald-600" },
   ],
 };
 
@@ -48,7 +52,8 @@ export function PedidosClient() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [formaPagto, setFormaPagto] = useState("DINHEIRO");
   const [novoForm, setNovoForm] = useState({
-    mesa: "", nomeCliente: "", observacao: "",
+    tipoPedido: "RETIRADA", nomeCliente: "", observacao: "",
+    horarioEntrega: "", taxaEntrega: "",
     itens: [{ produtoId: "", quantidade: 1, observacao: "" }] as ItemForm[],
   });
 
@@ -71,18 +76,28 @@ export function PedidosClient() {
     const itensValidos = novoForm.itens.filter((i) => i.produtoId && i.quantidade > 0);
     if (itensValidos.length === 0) return alert("Adicione pelo menos um item");
 
+    const isDelivery = novoForm.tipoPedido === "DELIVERY";
+
     const res = await fetch("/api/pedidos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...novoForm,
+        nomeCliente: novoForm.nomeCliente,
+        observacao: novoForm.observacao,
+        tipoPedido: novoForm.tipoPedido,
+        horarioEntrega: isDelivery ? novoForm.horarioEntrega : undefined,
+        taxaEntrega: isDelivery ? Number(novoForm.taxaEntrega) || 0 : 0,
         itens: itensValidos.map((i) => ({ ...i, quantidade: Number(i.quantidade) })),
       }),
     });
 
     if (res.ok) {
       setOpenNovo(false);
-      setNovoForm({ mesa: "", nomeCliente: "", observacao: "", itens: [{ produtoId: "", quantidade: 1, observacao: "" }] });
+      setNovoForm({
+        tipoPedido: "RETIRADA", nomeCliente: "", observacao: "",
+        horarioEntrega: "", taxaEntrega: "",
+        itens: [{ produtoId: "", quantidade: 1, observacao: "" }],
+      });
       fetchPedidos();
     }
   }
@@ -115,11 +130,14 @@ export function PedidosClient() {
   const removeItem = (idx: number) =>
     setNovoForm((f) => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }));
 
-  const calcTotal = () =>
-    novoForm.itens.reduce((s, item) => {
+  const calcTotal = () => {
+    const subtotal = novoForm.itens.reduce((s, item) => {
       const p = produtos.find((pr) => pr.id === item.produtoId);
       return s + (p ? Number(p.preco) * item.quantidade : 0);
     }, 0);
+    const taxa = novoForm.tipoPedido === "DELIVERY" ? Number(novoForm.taxaEntrega) || 0 : 0;
+    return subtotal + taxa;
+  };
 
   const statusBadgeColors = ["ABERTO", "EM_PREPARO", "PRONTO"];
 
@@ -138,7 +156,7 @@ export function PedidosClient() {
         </div>
         {/* Filtros de status com scroll horizontal no mobile */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {["", "ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "PAGO", "CANCELADO"].map((s) => (
+          {["", "ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "PAGAMENTO_PENDENTE", "PAGO", "CANCELADO"].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFiltro(s)}
@@ -168,8 +186,16 @@ export function PedidosClient() {
                   <div>
                     <span className="font-bold text-lg">#{pedido.numero}</span>
                     <p className="text-sm text-gray-500">
-                      {pedido.nomeCliente || (pedido.mesa ? `Mesa ${pedido.mesa}` : "Sem identificação")}
+                      {pedido.nomeCliente || "Sem identificação"}
                     </p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        {TIPO_PEDIDO_LABELS[pedido.tipoPedido] || pedido.tipoPedido}
+                      </span>
+                      {pedido.tipoPedido === "DELIVERY" && pedido.horarioEntrega && (
+                        <span className="text-xs text-gray-500">Entrega: {pedido.horarioEntrega}</span>
+                      )}
+                    </div>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${PEDIDO_STATUS_COLORS[pedido.status]}`}>
                     {PEDIDO_STATUS_LABELS[pedido.status]}
@@ -186,6 +212,11 @@ export function PedidosClient() {
                   {pedido.itens.length > 3 && (
                     <p className="text-xs text-gray-400">+{pedido.itens.length - 3} mais itens</p>
                   )}
+                  {pedido.observacao && (
+                    <p className="text-xs text-gray-500 italic mt-1 pt-1 border-t border-dashed">
+                      Obs: {pedido.observacao}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t">
@@ -193,6 +224,11 @@ export function PedidosClient() {
                     <span className="font-bold text-gray-900">{formatCurrency(Number(pedido.total))}</span>
                     <p className="text-xs text-gray-400">{formatDateTime(pedido.createdAt)}</p>
                   </div>
+                  {pedido.tipoPedido === "DELIVERY" && Number(pedido.taxaEntrega) > 0 && (
+                    <p className="text-xs text-gray-500">
+                      Inclui taxa de entrega: {formatCurrency(Number(pedido.taxaEntrega))}
+                    </p>
+                  )}
                   {/* Ações — empilhadas no mobile */}
                   <div className="flex flex-wrap gap-1">
                     {(STATUS_ACTIONS[pedido.status] || []).map((action) => (
@@ -238,12 +274,19 @@ export function PedidosClient() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label>Mesa</Label>
-                <Input
-                  placeholder="Ex: 5"
-                  value={novoForm.mesa}
-                  onChange={(e) => setNovoForm((f) => ({ ...f, mesa: e.target.value }))}
-                />
+                <Label>Tipo</Label>
+                <Select
+                  value={novoForm.tipoPedido}
+                  onValueChange={(v) => setNovoForm((f) => ({ ...f, tipoPedido: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar tipo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RETIRADA">Retirada</SelectItem>
+                    <SelectItem value="DELIVERY">Delivery</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Nome do Cliente</Label>
@@ -254,6 +297,30 @@ export function PedidosClient() {
                 />
               </div>
             </div>
+
+            {novoForm.tipoPedido === "DELIVERY" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Horário de Entrega</Label>
+                  <Input
+                    type="time"
+                    value={novoForm.horarioEntrega}
+                    onChange={(e) => setNovoForm((f) => ({ ...f, horarioEntrega: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Taxa de Entrega (R$)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0,00"
+                    value={novoForm.taxaEntrega}
+                    onChange={(e) => setNovoForm((f) => ({ ...f, taxaEntrega: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <Label>Observação</Label>

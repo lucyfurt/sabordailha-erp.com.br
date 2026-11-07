@@ -5,9 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const createPedidoSchema = z.object({
-  mesa: z.string().optional(),
   nomeCliente: z.string().optional(),
   observacao: z.string().optional(),
+  tipoPedido: z.enum(["RETIRADA", "DELIVERY"]).default("RETIRADA"),
+  horarioEntrega: z.string().optional(),
+  taxaEntrega: z.number().min(0).default(0),
   itens: z.array(z.object({
     produtoId: z.string(),
     quantidade: z.number().int().min(1),
@@ -81,11 +83,17 @@ export async function POST(req: NextRequest) {
 
     total -= data.desconto;
 
+    // Soma a taxa de entrega ao total quando for delivery
+    const taxaEntrega = data.tipoPedido === "DELIVERY" ? Number(data.taxaEntrega) || 0 : 0;
+    total += taxaEntrega;
+
     const pedido = await prisma.pedido.create({
       data: {
-        mesa: data.mesa,
         nomeCliente: data.nomeCliente,
         observacao: data.observacao,
+        tipoPedido: data.tipoPedido,
+        horarioEntrega: data.tipoPedido === "DELIVERY" ? data.horarioEntrega : null,
+        taxaEntrega,
         total,
         desconto: data.desconto,
         formaPagto: data.formaPagto,

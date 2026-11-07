@@ -77,6 +77,7 @@ export const PEDIDO_STATUS_LABELS: Record<string, string> = {
   ENTREGUE: "Entregue",
   CANCELADO: "Cancelado",
   PAGO: "Pago",
+  PAGAMENTO_PENDENTE: "Pagamento Pendente",
 };
 
 export const PEDIDO_STATUS_COLORS: Record<string, string> = {
@@ -86,6 +87,12 @@ export const PEDIDO_STATUS_COLORS: Record<string, string> = {
   ENTREGUE: "bg-purple-100 text-purple-800",
   CANCELADO: "bg-red-100 text-red-800",
   PAGO: "bg-emerald-100 text-emerald-800",
+  PAGAMENTO_PENDENTE: "bg-amber-100 text-amber-800",
+};
+
+export const TIPO_PEDIDO_LABELS: Record<string, string> = {
+  RETIRADA: "Retirada",
+  DELIVERY: "Delivery",
 };
 
 export const ROLE_LABELS: Record<string, string> = {

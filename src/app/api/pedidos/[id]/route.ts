@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const updateStatusSchema = z.object({
-  status: z.enum(["ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "CANCELADO", "PAGO"]),
+  status: z.enum(["ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "CANCELADO", "PAGO", "PAGAMENTO_PENDENTE"]),
   formaPagto: z.enum(["DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "VOUCHER", "MISTO"]).optional(),
 });
 

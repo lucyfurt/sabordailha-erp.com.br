@@ -191,15 +191,17 @@ model ReceitaItem {
 // ─── Pedidos ─────────────────────────────────────────────────────────────────
 
 model Pedido {
-  id           String       @id @default(cuid())
-  numero       Int          @unique @default(autoincrement())
-  status       PedidoStatus @default(ABERTO)
-  mesa         String?
-  nomeCliente  String?
-  observacao   String?
-  total        Decimal      @db.Decimal(10, 2) @default(0)
-  desconto     Decimal      @db.Decimal(10, 2) @default(0)
-  formaPagto   FormaPagto?
+  id             String       @id @default(cuid())
+  numero          Int          @unique @default(autoincrement())
+  status          PedidoStatus @default(ABERTO)
+  tipoPedido      TipoPedido   @default(RETIRADA)
+  horarioEntrega  String?
+  taxaEntrega     Decimal      @db.Decimal(10, 2) @default(0)
+  nomeCliente     String?
+  observacao      String?
+  total           Decimal      @db.Decimal(10, 2) @default(0)
+  desconto        Decimal      @db.Decimal(10, 2) @default(0)
+  formaPagto      FormaPagto?
   atendidoPor  String?
   userId       String?
   createdAt    DateTime     @default(now())
@@ -235,6 +237,12 @@ enum PedidoStatus {
   ENTREGUE
   CANCELADO
   PAGO
+  PAGAMENTO_PENDENTE
+}
+
+enum TipoPedido {
+  RETIRADA
+  DELIVERY
 }
 
 enum FormaPagto {
