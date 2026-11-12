@@ -14,6 +14,8 @@ const createPedidoSchema = z.object({
     observacao: z.string().optional(),
   })).min(1),
   formaPagto: z.enum(["DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "VOUCHER", "MISTO"]).optional(),
+  formaEntrega: z.enum(["RETIRADA", "DELIVERY"]).default("RETIRADA"),
+  enderecoEntrega: z.string().optional(),
   desconto: z.number().min(0).default(0),
 });
 
@@ -89,6 +91,8 @@ export async function POST(req: NextRequest) {
         total,
         desconto: data.desconto,
         formaPagto: data.formaPagto,
+        formaEntrega: data.formaEntrega,
+        enderecoEntrega: data.enderecoEntrega,
         userId: (session.user as any).id,
         itens: { create: itensData },
       },
