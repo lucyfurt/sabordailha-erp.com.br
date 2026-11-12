@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2 } from "lucide-react";
+import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Truck, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatCurrency, formatDateTime, PEDIDO_STATUS_LABELS,
-  PEDIDO_STATUS_COLORS, FORMA_PAGTO_LABELS,
+  PEDIDO_STATUS_COLORS, FORMA_PAGTO_LABELS, FORMA_ENTREGA_LABELS, FORMA_ENTREGA_COLORS,
 } from "@/lib/utils";
 
 type Produto = { id: string; nome: string; preco: number; categoria: { nome: string } };
@@ -49,6 +49,8 @@ export function PedidosClient() {
   const [formaPagto, setFormaPagto] = useState("DINHEIRO");
   const [novoForm, setNovoForm] = useState({
     mesa: "", nomeCliente: "", observacao: "",
+    formaEntrega: "RETIRADA" as "RETIRADA" | "DELIVERY",
+    enderecoEntrega: "",
     itens: [{ produtoId: "", quantidade: 1, observacao: "" }] as ItemForm[],
   });
 
@@ -82,7 +84,7 @@ export function PedidosClient() {
 
     if (res.ok) {
       setOpenNovo(false);
-      setNovoForm({ mesa: "", nomeCliente: "", observacao: "", itens: [{ produtoId: "", quantidade: 1, observacao: "" }] });
+      setNovoForm({ mesa: "", nomeCliente: "", observacao: "", formaEntrega: "RETIRADA", enderecoEntrega: "", itens: [{ produtoId: "", quantidade: 1, observacao: "" }] });
       fetchPedidos();
     }
   }
@@ -170,6 +172,13 @@ export function PedidosClient() {
                     <p className="text-sm text-gray-500">
                       {pedido.nomeCliente || (pedido.mesa ? `Mesa ${pedido.mesa}` : "Sem identificação")}
                     </p>
+                    {/* Badge de forma de entrega */}
+                    {pedido.formaEntrega && (
+                      <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${FORMA_ENTREGA_COLORS[pedido.formaEntrega]}`}>
+                        {pedido.formaEntrega === "DELIVERY" ? <Truck className="h-3 w-3" /> : <ShoppingBag className="h-3 w-3" />}
+                        {FORMA_ENTREGA_LABELS[pedido.formaEntrega]}
+                      </span>
+                    )}
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${PEDIDO_STATUS_COLORS[pedido.status]}`}>
                     {PEDIDO_STATUS_LABELS[pedido.status]}
@@ -177,6 +186,12 @@ export function PedidosClient() {
                 </div>
 
                 <div className="space-y-1 mb-3 text-sm text-gray-600">
+                  {pedido.enderecoEntrega && (
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                      <Truck className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                      {pedido.enderecoEntrega}
+                    </p>
+                  )}
                   {pedido.itens.slice(0, 3).map((item: any) => (
                     <div key={item.id} className="flex justify-between">
                       <span>{item.quantidade}x {item.produto?.nome}</span>
@@ -263,6 +278,41 @@ export function PedidosClient() {
                 onChange={(e) => setNovoForm((f) => ({ ...f, observacao: e.target.value }))}
                 rows={2}
               />
+            </div>
+
+            {/* Forma de Entrega */}
+            <div className="space-y-3">
+              <Label>Forma de Entrega</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["RETIRADA", "DELIVERY"] as const).map((fe) => (
+                  <button
+                    key={fe}
+                    type="button"
+                    onClick={() => setNovoForm((f) => ({ ...f, formaEntrega: fe, enderecoEntrega: fe === "RETIRADA" ? "" : f.enderecoEntrega }))}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-lg border-2 font-medium text-sm transition-colors ${
+                      novoForm.formaEntrega === fe
+                        ? fe === "DELIVERY"
+                          ? "border-orange-500 bg-orange-50 text-orange-700"
+                          : "border-sky-500 bg-sky-50 text-sky-700"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    {fe === "DELIVERY" ? <Truck className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
+                    {FORMA_ENTREGA_LABELS[fe]}
+                  </button>
+                ))}
+              </div>
+
+              {novoForm.formaEntrega === "DELIVERY" && (
+                <div>
+                  <Label>Endereço de Entrega</Label>
+                  <Input
+                    placeholder="Rua, número, bairro..."
+                    value={novoForm.enderecoEntrega}
+                    onChange={(e) => setNovoForm((f) => ({ ...f, enderecoEntrega: e.target.value }))}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

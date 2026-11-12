@@ -7,6 +7,8 @@ import { z } from "zod";
 const updateStatusSchema = z.object({
   status: z.enum(["ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "CANCELADO", "PAGO"]),
   formaPagto: z.enum(["DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "VOUCHER", "MISTO"]).optional(),
+  formaEntrega: z.enum(["RETIRADA", "DELIVERY"]).optional(),
+  enderecoEntrega: z.string().optional(),
 });
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -38,6 +40,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const updateData: any = { status: data.status };
     if (data.formaPagto) updateData.formaPagto = data.formaPagto;
+    if (data.formaEntrega) updateData.formaEntrega = data.formaEntrega;
+    if (data.enderecoEntrega !== undefined) updateData.enderecoEntrega = data.enderecoEntrega;
 
     // Se estiver fechando (PAGO), registrar no caixa automaticamente
     if (data.status === "PAGO" && pedido.status !== "PAGO") {

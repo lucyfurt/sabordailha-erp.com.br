@@ -70,6 +70,16 @@ export const FORMA_PAGTO_LABELS: Record<string, string> = {
   MISTO: "Misto",
 };
 
+export const FORMA_ENTREGA_LABELS: Record<string, string> = {
+  RETIRADA: "Retirada",
+  DELIVERY: "Delivery",
+};
+
+export const FORMA_ENTREGA_COLORS: Record<string, string> = {
+  RETIRADA: "bg-sky-100 text-sky-800",
+  DELIVERY: "bg-orange-100 text-orange-800",
+};
+
 export const PEDIDO_STATUS_LABELS: Record<string, string> = {
   ABERTO: "Aberto",
   EM_PREPARO: "Em Preparo",
