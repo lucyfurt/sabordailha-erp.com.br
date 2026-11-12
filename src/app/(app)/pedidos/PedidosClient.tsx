@@ -37,6 +37,9 @@ const STATUS_ACTIONS: Record<string, { label: string; next: string; icon: any; c
   ENTREGUE: [
     { label: "Registrar Pagamento", next: "PAGO", icon: CreditCard, color: "bg-emerald-500 hover:bg-emerald-600" },
   ],
+  AGUARDANDO_PAGTO: [
+    { label: "Registrar Pagamento", next: "PAGO", icon: CreditCard, color: "bg-emerald-500 hover:bg-emerald-600" },
+  ],
 };
 
 export function PedidosClient() {
@@ -56,17 +59,26 @@ export function PedidosClient() {
 
   const fetchPedidos = useCallback(async () => {
     setLoading(true);
-    const qs = statusFiltro ? `?status=${statusFiltro}` : "";
-    const res = await fetch(`/api/pedidos${qs}`);
-    const data = await res.json();
-    setPedidos(data.pedidos || []);
-    setLoading(false);
+    try {
+      const qs = statusFiltro ? `?status=${statusFiltro}` : "";
+      const res = await fetch(`/api/pedidos${qs}`);
+      if (!res.ok) throw new Error("Falha ao carregar pedidos");
+      const data = await res.json();
+      setPedidos(data.pedidos || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [statusFiltro]);
 
   useEffect(() => { fetchPedidos(); }, [fetchPedidos]);
 
   useEffect(() => {
-    fetch("/api/produtos?ativo=true").then((r) => r.json()).then(setProdutos);
+    fetch("/api/produtos?ativo=true")
+      .then((r) => r.ok ? r.json() : Promise.reject(r))
+      .then(setProdutos)
+      .catch((err) => console.error("Erro ao carregar produtos", err));
   }, []);
 
   async function criarPedido() {
@@ -86,16 +98,24 @@ export function PedidosClient() {
       setOpenNovo(false);
       setNovoForm({ mesa: "", nomeCliente: "", observacao: "", formaEntrega: "RETIRADA", enderecoEntrega: "", itens: [{ produtoId: "", quantidade: 1, observacao: "" }] });
       fetchPedidos();
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Erro ao criar pedido");
     }
   }
 
   async function mudarStatus(pedidoId: string, status: string, fPagto?: string) {
-    await fetch(`/api/pedidos/${pedidoId}`, {
+    const res = await fetch(`/api/pedidos/${pedidoId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, ...(fPagto ? { formaPagto: fPagto } : {}) }),
     });
     setOpenPagto(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Erro ao atualizar pedido");
+      return;
+    }
     fetchPedidos();
   }
 
@@ -140,7 +160,7 @@ export function PedidosClient() {
         </div>
         {/* Filtros de status com scroll horizontal no mobile */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {["", "ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "PAGO", "CANCELADO"].map((s) => (
+          {["", "ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "AGUARDANDO_PAGTO", "PAGO", "CANCELADO"].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFiltro(s)}
@@ -186,6 +206,9 @@ export function PedidosClient() {
                 </div>
 
                 <div className="space-y-1 mb-3 text-sm text-gray-600">
+                  {pedido.observacao && (
+                    <p className="text-xs text-gray-500 italic mb-1">"{pedido.observacao}"</p>
+                  )}
                   {pedido.enderecoEntrega && (
                     <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                       <Truck className="h-3 w-3 text-orange-500 flex-shrink-0" />
@@ -215,6 +238,8 @@ export function PedidosClient() {
                         key={action.next}
                         onClick={() => {
                           if (action.next === "PAGO") {
+                            // Se já está aguardando pagamento, reseta para DINHEIRO direto
+                            setFormaPagto(pedido.status === "AGUARDANDO_PAGTO" ? "DINHEIRO" : "DINHEIRO");
                             setOpenPagto({ pedido, next: "PAGO" });
                           } else {
                             mudarStatus(pedido.id, action.next);
@@ -407,21 +432,37 @@ export function PedidosClient() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(FORMA_PAGTO_LABELS).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
+                    {Object.entries(FORMA_PAGTO_LABELS)
+                      // Oculta "Pagamento Pendente" quando já está em AGUARDANDO_PAGTO
+                      .filter(([k]) => openPagto.pedido.status === "AGUARDANDO_PAGTO" ? k !== "PENDENTE" : true)
+                      .map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
+              {formaPagto === "PENDENTE" && (
+                <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                  <span className="text-base leading-none mt-0.5">⚠️</span>
+                  <p>O pedido ficará como <strong>Aguardando Pagamento</strong>. Nenhum valor será registrado no caixa agora.</p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenPagto(null)}>Cancelar</Button>
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700"
-              onClick={() => openPagto && mudarStatus(openPagto.pedido.id, "PAGO", formaPagto)}
+              className={formaPagto === "PENDENTE" ? "bg-yellow-500 hover:bg-yellow-600" : "bg-emerald-600 hover:bg-emerald-700"}
+              onClick={() => {
+                if (!openPagto) return;
+                if (formaPagto === "PENDENTE") {
+                  mudarStatus(openPagto.pedido.id, "AGUARDANDO_PAGTO");
+                } else {
+                  mudarStatus(openPagto.pedido.id, "PAGO", formaPagto);
+                }
+              }}
             >
-              Confirmar Pagamento
+              {formaPagto === "PENDENTE" ? "Deixar Pendente" : "Confirmar Pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>

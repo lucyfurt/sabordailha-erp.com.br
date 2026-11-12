@@ -235,6 +235,7 @@ enum PedidoStatus {
   EM_PREPARO
   PRONTO
   ENTREGUE
+  AGUARDANDO_PAGTO
   CANCELADO
   PAGO
 }
@@ -246,6 +247,7 @@ enum FormaPagto {
   PIX
   VOUCHER
   MISTO
+  PENDENTE
 }
 
 enum FormaEntrega {

@@ -5,8 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const updateStatusSchema = z.object({
-  status: z.enum(["ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "CANCELADO", "PAGO"]),
-  formaPagto: z.enum(["DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "VOUCHER", "MISTO"]).optional(),
+  status: z.enum(["ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "AGUARDANDO_PAGTO", "CANCELADO", "PAGO"]),
+  formaPagto: z.enum(["DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "VOUCHER", "MISTO", "PENDENTE"]).optional(),
   formaEntrega: z.enum(["RETIRADA", "DELIVERY"]).optional(),
   enderecoEntrega: z.string().optional(),
 });
@@ -43,9 +43,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (data.formaEntrega) updateData.formaEntrega = data.formaEntrega;
     if (data.enderecoEntrega !== undefined) updateData.enderecoEntrega = data.enderecoEntrega;
 
-    // Se estiver fechando (PAGO), registrar no caixa automaticamente
+    // Pagamento pendente: vai para AGUARDANDO_PAGTO, sem mexer no caixa
+    if (data.status === "AGUARDANDO_PAGTO") {
+      const updated = await prisma.pedido.update({
+        where: { id: params.id },
+        data: updateData,
+        include: { itens: { include: { produto: true } } },
+      });
+      return NextResponse.json(updated);
+    }
+
+    // Fechamento com pagamento: registra no caixa
     if (data.status === "PAGO" && pedido.status !== "PAGO") {
       updateData.fechadoEm = new Date();
+
+      // Garante que formaPagto final nunca seja PENDENTE no caixa
+      const formaPagtoFinal =
+        (data.formaPagto && data.formaPagto !== "PENDENTE")
+          ? data.formaPagto
+          : (pedido.formaPagto && pedido.formaPagto !== "PENDENTE")
+            ? pedido.formaPagto
+            : "DINHEIRO";
 
       await prisma.$transaction([
         prisma.pedido.update({ where: { id: params.id }, data: updateData }),
@@ -53,9 +71,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           data: {
             tipo: "ENTRADA",
             categoria: "VENDA",
-            descricao: `Pedido #${pedido.numero} - ${data.formaPagto || pedido.formaPagto || "DINHEIRO"}`,
+            descricao: `Pedido #${pedido.numero} - ${formaPagtoFinal}`,
             valor: pedido.total,
-            formaPagto: data.formaPagto || pedido.formaPagto || "DINHEIRO",
+            formaPagto: formaPagtoFinal,
             pedidoId: params.id,
             userId: (session.user as any).id,
           },
@@ -89,8 +107,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   const pedido = await prisma.pedido.findUnique({ where: { id: params.id } });
   if (!pedido) return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
-  if (pedido.status === "PAGO") {
-    return NextResponse.json({ error: "Não é possível remover um pedido já pago" }, { status: 400 });
+  if (pedido.status === "PAGO" || pedido.status === "AGUARDANDO_PAGTO") {
+    return NextResponse.json({ error: "Não é possível remover um pedido já concluído ou aguardando pagamento" }, { status: 400 });
   }
 
   // Remove o pedido e seus vínculos em uma transação.
