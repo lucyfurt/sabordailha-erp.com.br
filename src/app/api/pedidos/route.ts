@@ -16,6 +16,7 @@ const createPedidoSchema = z.object({
   formaPagto: z.enum(["DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "VOUCHER", "MISTO"]).optional(),
   formaEntrega: z.enum(["RETIRADA", "DELIVERY"]).default("RETIRADA"),
   enderecoEntrega: z.string().optional(),
+  taxaEntrega: z.number().min(0).default(0),
   desconto: z.number().min(0).default(0),
 });
 
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
     });
 
     total -= data.desconto;
+    total += data.taxaEntrega;
 
     const pedido = await prisma.pedido.create({
       data: {
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
         formaPagto: data.formaPagto,
         formaEntrega: data.formaEntrega,
         enderecoEntrega: data.enderecoEntrega,
+        taxaEntrega: data.taxaEntrega,
         userId: (session.user as any).id,
         itens: { create: itensData },
       },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Truck, ShoppingBag } from "lucide-react";
+import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Truck, ShoppingBag, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,9 @@ const STATUS_ACTIONS: Record<string, { label: string; next: string; icon: any; c
   ENTREGUE: [
     { label: "Registrar Pagamento", next: "PAGO", icon: CreditCard, color: "bg-emerald-500 hover:bg-emerald-600" },
   ],
-};
+  PAGAMENTO_PENDENTE: [
+    { label: "Registrar Pagamento", next: "PAGO", icon: CreditCard, color: "bg-emerald-500 hover:bg-emerald-600" },
+  ],};
 
 export function PedidosClient() {
   const [pedidos, setPedidos] = useState<any[]>([]);
@@ -45,28 +47,45 @@ export function PedidosClient() {
   const [statusFiltro, setStatusFiltro] = useState("");
   const [openNovo, setOpenNovo] = useState(false);
   const [openPagto, setOpenPagto] = useState<{ pedido: any; next: string } | null>(null);
+  const [openEditar, setOpenEditar] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    formaEntrega: "RETIRADA" as "RETIRADA" | "DELIVERY",
+    enderecoEntrega: "", nomeCliente: "", observacao: "",
+    taxaEntrega: "",
+    itens: [{ produtoId: "", quantidade: 1, observacao: "" }] as ItemForm[],
+  });
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [formaPagto, setFormaPagto] = useState("DINHEIRO");
   const [novoForm, setNovoForm] = useState({
     mesa: "", nomeCliente: "", observacao: "",
     formaEntrega: "RETIRADA" as "RETIRADA" | "DELIVERY",
     enderecoEntrega: "",
+    taxaEntrega: 0,
     itens: [{ produtoId: "", quantidade: 1, observacao: "" }] as ItemForm[],
   });
 
   const fetchPedidos = useCallback(async () => {
     setLoading(true);
-    const qs = statusFiltro ? `?status=${statusFiltro}` : "";
-    const res = await fetch(`/api/pedidos${qs}`);
-    const data = await res.json();
-    setPedidos(data.pedidos || []);
-    setLoading(false);
+    try {
+      const qs = statusFiltro ? `?status=${statusFiltro}` : "";
+      const res = await fetch(`/api/pedidos${qs}`);
+      if (!res.ok) throw new Error("Falha ao carregar pedidos");
+      const data = await res.json();
+      setPedidos(data.pedidos || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [statusFiltro]);
 
   useEffect(() => { fetchPedidos(); }, [fetchPedidos]);
 
   useEffect(() => {
-    fetch("/api/produtos?ativo=true").then((r) => r.json()).then(setProdutos);
+    fetch("/api/produtos?ativo=true")
+      .then((r) => r.ok ? r.json() : Promise.reject(r))
+      .then(setProdutos)
+      .catch((err) => console.error("Erro ao carregar produtos", err));
   }, []);
 
   async function criarPedido() {
@@ -84,18 +103,26 @@ export function PedidosClient() {
 
     if (res.ok) {
       setOpenNovo(false);
-      setNovoForm({ mesa: "", nomeCliente: "", observacao: "", formaEntrega: "RETIRADA", enderecoEntrega: "", itens: [{ produtoId: "", quantidade: 1, observacao: "" }] });
+      setNovoForm({ mesa: "", nomeCliente: "", observacao: "", formaEntrega: "RETIRADA", enderecoEntrega: "", taxaEntrega: 0, itens: [{ produtoId: "", quantidade: 1, observacao: "" }] });
       fetchPedidos();
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Erro ao criar pedido");
     }
   }
 
   async function mudarStatus(pedidoId: string, status: string, fPagto?: string) {
-    await fetch(`/api/pedidos/${pedidoId}`, {
+    const res = await fetch(`/api/pedidos/${pedidoId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, ...(fPagto ? { formaPagto: fPagto } : {}) }),
     });
     setOpenPagto(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Erro ao atualizar pedido");
+      return;
+    }
     fetchPedidos();
   }
 
@@ -111,6 +138,65 @@ export function PedidosClient() {
     }
   }
 
+  function abrirEditar(pedido: any) {
+    setEditForm({
+      formaEntrega: pedido.formaEntrega || "RETIRADA",
+      enderecoEntrega: pedido.enderecoEntrega || "",
+      nomeCliente: pedido.nomeCliente || "",
+      observacao: pedido.observacao || "",
+      taxaEntrega: pedido.taxaEntrega ? String(pedido.taxaEntrega) : "",
+      itens: pedido.itens.map((it: any) => ({
+        produtoId: it.produtoId,
+        quantidade: it.quantidade,
+        observacao: it.observacao || "",
+      })),
+    });
+    setOpenEditar(pedido);
+  }
+
+  async function salvarEdicao() {
+    if (!openEditar) return;
+    const itensValidos = editForm.itens.filter((i) => i.produtoId && i.quantidade > 0);
+    if (itensValidos.length === 0) return alert("Adicione pelo menos um item");
+
+    const isDelivery = editForm.formaEntrega === "DELIVERY";
+    const res = await fetch(`/api/pedidos/${openEditar.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nomeCliente: editForm.nomeCliente,
+        observacao: editForm.observacao,
+        formaEntrega: editForm.formaEntrega,
+        enderecoEntrega: isDelivery ? editForm.enderecoEntrega : null,
+        taxaEntrega: isDelivery ? Number(editForm.taxaEntrega) || 0 : 0,
+        itens: itensValidos.map((i) => ({ ...i, quantidade: Number(i.quantidade) })),
+      }),
+    });
+
+    if (res.ok) {
+      setOpenEditar(null);
+      fetchPedidos();
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Erro ao salvar edição");
+    }
+  }
+
+  const addItemEditar = () =>
+    setEditForm((f) => ({ ...f, itens: [...f.itens, { produtoId: "", quantidade: 1, observacao: "" }] }));
+
+  const removeItemEditar = (idx: number) =>
+    setEditForm((f) => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }));
+
+  const calcTotalEditar = () => {
+    const subtotal = editForm.itens.reduce((s, item) => {
+      const p = produtos.find((pr) => pr.id === item.produtoId);
+      return s + (p ? Number(p.preco) * item.quantidade : 0);
+    }, 0);
+    const taxa = editForm.formaEntrega === "DELIVERY" ? Number(editForm.taxaEntrega) || 0 : 0;
+    return subtotal + taxa;
+  };
+
   const addItem = () =>
     setNovoForm((f) => ({ ...f, itens: [...f.itens, { produtoId: "", quantidade: 1, observacao: "" }] }));
 
@@ -121,7 +207,7 @@ export function PedidosClient() {
     novoForm.itens.reduce((s, item) => {
       const p = produtos.find((pr) => pr.id === item.produtoId);
       return s + (p ? Number(p.preco) * item.quantidade : 0);
-    }, 0);
+    }, 0) + novoForm.taxaEntrega;
 
   const statusBadgeColors = ["ABERTO", "EM_PREPARO", "PRONTO"];
 
@@ -140,7 +226,7 @@ export function PedidosClient() {
         </div>
         {/* Filtros de status com scroll horizontal no mobile */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {["", "ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "PAGO", "CANCELADO"].map((s) => (
+          {["", "ABERTO", "EM_PREPARO", "PRONTO", "ENTREGUE", "PAGAMENTO_PENDENTE", "PAGO", "CANCELADO"].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFiltro(s)}
@@ -186,10 +272,16 @@ export function PedidosClient() {
                 </div>
 
                 <div className="space-y-1 mb-3 text-sm text-gray-600">
+                  {pedido.observacao && (
+                    <p className="text-xs text-gray-500 italic mb-1">"{pedido.observacao}"</p>
+                  )}
                   {pedido.enderecoEntrega && (
                     <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
                       <Truck className="h-3 w-3 text-orange-500 flex-shrink-0" />
                       {pedido.enderecoEntrega}
+                      {Number(pedido.taxaEntrega) > 0 && (
+                        <span className="ml-1 font-medium text-orange-600">(+{formatCurrency(Number(pedido.taxaEntrega))})</span>
+                      )}
                     </p>
                   )}
                   {pedido.itens.slice(0, 3).map((item: any) => (
@@ -215,6 +307,8 @@ export function PedidosClient() {
                         key={action.next}
                         onClick={() => {
                           if (action.next === "PAGO") {
+                            // Se já está aguardando pagamento, reseta para DINHEIRO direto
+                            setFormaPagto(pedido.status === "PAGAMENTO_PENDENTE" ? "DINHEIRO" : "DINHEIRO");
                             setOpenPagto({ pedido, next: "PAGO" });
                           } else {
                             mudarStatus(pedido.id, action.next);
@@ -228,14 +322,25 @@ export function PedidosClient() {
                     ))}
                   </div>
 
-                  {/* Remover pedido */}
-                  <button
-                    onClick={() => removerPedido(pedido.id)}
-                    className="w-full px-2.5 py-2 rounded-md text-red-600 hover:bg-red-50 border border-red-200 text-xs font-medium flex items-center justify-center gap-1"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    Remover
-                  </button>
+                  {/* Editar / Remover pedido */}
+                  <div className="flex gap-1">
+                    {pedido.status !== "PAGO" && (
+                      <button
+                        onClick={() => abrirEditar(pedido)}
+                        className="flex-1 px-2.5 py-2 rounded-md text-blue-600 hover:bg-blue-50 border border-blue-200 text-xs font-medium flex items-center justify-center gap-1"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Editar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => removerPedido(pedido.id)}
+                      className="flex-1 px-2.5 py-2 rounded-md text-red-600 hover:bg-red-50 border border-red-200 text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Remover
+                    </button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -304,13 +409,26 @@ export function PedidosClient() {
               </div>
 
               {novoForm.formaEntrega === "DELIVERY" && (
-                <div>
-                  <Label>Endereço de Entrega</Label>
-                  <Input
-                    placeholder="Rua, número, bairro..."
-                    value={novoForm.enderecoEntrega}
-                    onChange={(e) => setNovoForm((f) => ({ ...f, enderecoEntrega: e.target.value }))}
-                  />
+                <div className="space-y-2">
+                  <div>
+                    <Label>Endereço de Entrega</Label>
+                    <Input
+                      placeholder="Rua, número, bairro..."
+                      value={novoForm.enderecoEntrega}
+                      onChange={(e) => setNovoForm((f) => ({ ...f, enderecoEntrega: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Taxa de Entrega (R$)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.50}
+                      placeholder="0,00"
+                      value={novoForm.taxaEntrega || ""}
+                      onChange={(e) => setNovoForm((f) => ({ ...f, taxaEntrega: parseFloat(e.target.value) || 0 }))}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -388,6 +506,147 @@ export function PedidosClient() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal Editar Pedido */}
+      <Dialog open={!!openEditar} onOpenChange={(open) => { if (!open) setOpenEditar(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Pedido #{openEditar?.numero}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Nome do Cliente</Label>
+                <Input
+                  placeholder="Ex: João"
+                  value={editForm.nomeCliente}
+                  onChange={(e) => setEditForm((f) => ({ ...f, nomeCliente: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Forma de Entrega</Label>
+                <Select
+                  value={editForm.formaEntrega}
+                  onValueChange={(v: "RETIRADA" | "DELIVERY") =>
+                    setEditForm((f) => ({ ...f, formaEntrega: v, enderecoEntrega: v === "RETIRADA" ? "" : f.enderecoEntrega, taxaEntrega: v === "RETIRADA" ? "" : f.taxaEntrega }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RETIRADA">🛍️ Retirada</SelectItem>
+                    <SelectItem value="DELIVERY">🚚 Delivery</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {editForm.formaEntrega === "DELIVERY" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Endereço de Entrega</Label>
+                  <Input
+                    placeholder="Rua, número, bairro..."
+                    value={editForm.enderecoEntrega}
+                    onChange={(e) => setEditForm((f) => ({ ...f, enderecoEntrega: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Taxa de Entrega (R$)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.50"
+                    placeholder="0,00"
+                    value={editForm.taxaEntrega}
+                    onChange={(e) => setEditForm((f) => ({ ...f, taxaEntrega: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label>Observação</Label>
+              <Textarea
+                placeholder="Alguma observação geral?"
+                value={editForm.observacao}
+                onChange={(e) => setEditForm((f) => ({ ...f, observacao: e.target.value }))}
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Itens</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addItemEditar}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar
+                </Button>
+              </div>
+
+              {editForm.itens.map((item, idx) => (
+                <div key={idx} className="flex gap-2 items-end p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <Select
+                      value={item.produtoId}
+                      onValueChange={(v) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          itens: f.itens.map((it, i) => (i === idx ? { ...it, produtoId: v } : it)),
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar produto..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {produtos.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.nome} — {formatCurrency(p.preco)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-20">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={item.quantidade}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          itens: f.itens.map((it, i) =>
+                            i === idx ? { ...it, quantidade: parseInt(e.target.value) || 1 } : it
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500"
+                    onClick={() => removeItemEditar(idx)}
+                    disabled={editForm.itens.length === 1}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+
+              <div className="text-right font-bold text-lg mt-2">
+                Total: {formatCurrency(calcTotalEditar())}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditar(null)}>Cancelar</Button>
+            <Button onClick={salvarEdicao}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Modal Pagamento */}
       <Dialog open={!!openPagto} onOpenChange={() => setOpenPagto(null)}>
         <DialogContent>
@@ -407,21 +666,37 @@ export function PedidosClient() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(FORMA_PAGTO_LABELS).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
+                    {Object.entries(FORMA_PAGTO_LABELS)
+                      // Oculta "Pagamento Pendente" quando já está em PAGAMENTO_PENDENTE
+                      .filter(([k]) => openPagto.pedido.status === "PAGAMENTO_PENDENTE" ? k !== "PENDENTE" : true)
+                      .map(([k, v]) => (
+                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
+              {formaPagto === "PENDENTE" && (
+                <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                  <span className="text-base leading-none mt-0.5">⚠️</span>
+                  <p>O pedido ficará como <strong>Aguardando Pagamento</strong>. Nenhum valor será registrado no caixa agora.</p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenPagto(null)}>Cancelar</Button>
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700"
-              onClick={() => openPagto && mudarStatus(openPagto.pedido.id, "PAGO", formaPagto)}
+              className={formaPagto === "PENDENTE" ? "bg-yellow-500 hover:bg-yellow-600" : "bg-emerald-600 hover:bg-emerald-700"}
+              onClick={() => {
+                if (!openPagto) return;
+                if (formaPagto === "PENDENTE") {
+                  mudarStatus(openPagto.pedido.id, "PAGAMENTO_PENDENTE");
+                } else {
+                  mudarStatus(openPagto.pedido.id, "PAGO", formaPagto);
+                }
+              }}
             >
-              Confirmar Pagamento
+              {formaPagto === "PENDENTE" ? "Deixar Pendente" : "Confirmar Pagamento"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -200,8 +200,9 @@ model Pedido {
   total        Decimal      @db.Decimal(10, 2) @default(0)
   desconto     Decimal      @db.Decimal(10, 2) @default(0)
   formaPagto   FormaPagto?
-  formaEntrega FormaEntrega @default(RETIRADA)
+  formaEntrega    FormaEntrega @default(RETIRADA)
   enderecoEntrega String?
+  taxaEntrega     Decimal      @db.Decimal(10, 2) @default(0)
   atendidoPor  String?
   userId       String?
   createdAt    DateTime     @default(now())
@@ -235,6 +236,7 @@ enum PedidoStatus {
   EM_PREPARO
   PRONTO
   ENTREGUE
+  PAGAMENTO_PENDENTE
   CANCELADO
   PAGO
 }
@@ -246,6 +248,7 @@ enum FormaPagto {
   PIX
   VOUCHER
   MISTO
+  PENDENTE
 }
 
 enum FormaEntrega {

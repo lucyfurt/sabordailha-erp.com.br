@@ -68,6 +68,7 @@ export const FORMA_PAGTO_LABELS: Record<string, string> = {
   PIX: "PIX",
   VOUCHER: "Voucher",
   MISTO: "Misto",
+  PENDENTE: "Pagamento Pendente",
 };
 
 export const FORMA_ENTREGA_LABELS: Record<string, string> = {
@@ -85,8 +86,9 @@ export const PEDIDO_STATUS_LABELS: Record<string, string> = {
   EM_PREPARO: "Em Preparo",
   PRONTO: "Pronto",
   ENTREGUE: "Entregue",
+  PAGAMENTO_PENDENTE: "Pagamento Pendente",
   CANCELADO: "Cancelado",
-  PAGO: "Pago",
+  PAGO: "Concluído",
 };
 
 export const PEDIDO_STATUS_COLORS: Record<string, string> = {
@@ -94,6 +96,7 @@ export const PEDIDO_STATUS_COLORS: Record<string, string> = {
   EM_PREPARO: "bg-yellow-100 text-yellow-800",
   PRONTO: "bg-green-100 text-green-800",
   ENTREGUE: "bg-purple-100 text-purple-800",
+  PAGAMENTO_PENDENTE: "bg-orange-100 text-orange-800",
   CANCELADO: "bg-red-100 text-red-800",
   PAGO: "bg-emerald-100 text-emerald-800",
 };
