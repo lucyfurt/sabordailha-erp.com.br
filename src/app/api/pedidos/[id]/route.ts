@@ -53,6 +53,64 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json(updated);
     }
 
+    // Ao entregar: baixa automática no estoque conforme receita de cada produto
+    if (data.status === "ENTREGUE" && pedido.status !== "ENTREGUE" && pedido.status !== "PAGO") {
+      const pedidoComItens = await prisma.pedido.findUnique({
+        where: { id: params.id },
+        include: {
+          itens: {
+            include: {
+              produto: { include: { receitaItens: true } },
+            },
+          },
+        },
+      });
+
+      if (pedidoComItens) {
+        // Monta lista de baixas: { materialId, quantidade total a descontar }
+        const baixas: Record<string, number> = {};
+        for (const item of pedidoComItens.itens) {
+          for (const ri of item.produto.receitaItens) {
+            const matId = ri.materialId;
+            baixas[matId] = (baixas[matId] || 0) + Number(ri.quantidade) * item.quantidade;
+          }
+        }
+
+        // Busca materiais afetados
+        const materialIds = Object.keys(baixas);
+        if (materialIds.length > 0) {
+          const materiais = await prisma.material.findMany({ where: { id: { in: materialIds } } });
+          const matMap = Object.fromEntries(materiais.map((m) => [m.id, m]));
+
+          await prisma.$transaction([
+            prisma.pedido.update({ where: { id: params.id }, data: updateData }),
+            ...materialIds.map((matId) =>
+              prisma.estoqueMovimento.create({
+                data: {
+                  materialId: matId,
+                  tipo: "SAIDA",
+                  quantidade: baixas[matId],
+                  motivo: `Pedido #${pedido.numero}`,
+                  pedidoId: params.id,
+                },
+              })
+            ),
+            ...materialIds.map((matId) => {
+              const mat = matMap[matId];
+              const novaQtd = Math.max(0, Number(mat.quantidadeAtual) - baixas[matId]);
+              return prisma.material.update({ where: { id: matId }, data: { quantidadeAtual: novaQtd } });
+            }),
+          ]);
+
+          const updated = await prisma.pedido.findUnique({
+            where: { id: params.id },
+            include: { itens: { include: { produto: true } } },
+          });
+          return NextResponse.json(updated);
+        }
+      }
+    }
+
     // Fechamento com pagamento: registra no caixa
     if (data.status === "PAGO" && pedido.status !== "PAGO") {
       updateData.fechadoEm = new Date();

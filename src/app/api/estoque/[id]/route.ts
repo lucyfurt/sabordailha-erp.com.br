@@ -7,9 +7,12 @@ import { z } from "zod";
 const updateSchema = z.object({
   nome: z.string().min(1).optional(),
   descricao: z.string().optional(),
+  categoria: z.string().optional(),
   unidade: z.string().optional(),
   quantidadeMin: z.number().min(0).optional(),
   custoUnitario: z.number().optional(),
+  tamEmbalagem: z.number().optional().nullable(),
+  unidadeEmbalagem: z.string().optional().nullable(),
   fornecedorId: z.string().optional().nullable(),
   ativo: z.boolean().optional(),
 });

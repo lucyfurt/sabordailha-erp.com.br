@@ -7,15 +7,18 @@ import { z } from "zod";
 const materialSchema = z.object({
   nome: z.string().min(1),
   descricao: z.string().optional(),
+  categoria: z.string().default("Ingrediente"),
   unidade: z.string().min(1),
   quantidadeMin: z.number().min(0).default(0),
   custoUnitario: z.number().optional(),
+  tamEmbalagem: z.number().optional(),
+  unidadeEmbalagem: z.string().optional(),
   fornecedorId: z.string().optional(),
 });
 
 const movSchema = z.object({
   materialId: z.string(),
-  tipo: z.enum(["ENTRADA", "SAIDA", "AJUSTE", "PERDA"]),
+  tipo: z.enum(["ENTRADA", "SAIDA", "AJUSTE", "PERDA", "SOBRA", "DESPERDICIO"]),
   quantidade: z.number().positive(),
   motivo: z.string().optional(),
   custoTotal: z.number().optional(),
@@ -28,9 +31,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const critico = searchParams.get("critico") === "true";
   const search = searchParams.get("search") || "";
+  const categoria = searchParams.get("categoria") || "";
 
   const where: any = { ativo: true };
   if (search) where.nome = { contains: search, mode: "insensitive" };
+  if (categoria) where.categoria = categoria;
 
   const materiais = await prisma.material.findMany({
     where,
@@ -67,7 +72,7 @@ export async function POST(req: NextRequest) {
 
       let novaQtd = Number(material.quantidadeAtual);
       if (data.tipo === "ENTRADA") novaQtd += data.quantidade;
-      else if (data.tipo === "SAIDA" || data.tipo === "PERDA") novaQtd -= data.quantidade;
+      else if (data.tipo === "SAIDA" || data.tipo === "PERDA" || data.tipo === "SOBRA" || data.tipo === "DESPERDICIO") novaQtd -= data.quantidade;
       else novaQtd = data.quantidade; // AJUSTE: seta a quantidade
 
       if (novaQtd < 0) {
@@ -86,7 +91,20 @@ export async function POST(req: NextRequest) {
         }),
         prisma.material.update({
           where: { id: data.materialId },
-          data: { quantidadeAtual: novaQtd },
+          data: {
+            quantidadeAtual: novaQtd,
+            // Atualiza custo unitário e custo médio ponderado ao comprar
+            ...(data.tipo === "ENTRADA" && data.custoTotal ? (() => {
+              const custoNovo = data.custoTotal / data.quantidade;
+              const qtdAnterior = Number(material.quantidadeAtual);
+              const custoAnterior = Number(material.custoMedio || material.custoUnitario || custoNovo);
+              // Custo médio ponderado = (qtdAnterior * custoAnterior + qtdNova * custoNovo) / (qtdAnterior + qtdNova)
+              const custoMedio = qtdAnterior > 0
+                ? (qtdAnterior * custoAnterior + data.quantidade * custoNovo) / (qtdAnterior + data.quantidade)
+                : custoNovo;
+              return { custoUnitario: custoNovo, custoMedio };
+            })() : {}),
+          },
         }),
       ]);
 

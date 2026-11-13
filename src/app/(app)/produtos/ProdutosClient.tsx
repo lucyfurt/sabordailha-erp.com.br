@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, Search, Pencil, ToggleLeft, ToggleRight,
-  Tag, Trash2, UtensilsCrossed, AlertCircle,
+  Tag, Trash2, UtensilsCrossed, AlertCircle, BookOpen, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,12 @@ export function ProdutosClient() {
   const [prodForm, setProdForm] = useState({
     nome: "", descricao: "", preco: "", categoriaId: "", custoEstimado: "",
   });
+  const [prodTab, setProdTab] = useState<"info" | "receita">("info");
+
+  // ── Receita state ──
+  const [materiais, setMateriais] = useState<any[]>([]);
+  const [receita, setReceita] = useState<{ materialId: string; quantidade: string }[]>([]);
+  const [receitaLoading, setReceitaLoading] = useState(false);
 
   // ── Categorias state ──
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -95,8 +101,13 @@ export function ProdutosClient() {
   useEffect(() => { fetchCategorias(); }, [fetchCategorias]);
   useEffect(() => { fetchProdutos(); }, [fetchProdutos]);
 
+  useEffect(() => {
+    fetch("/api/estoque").then((r) => r.json()).then(setMateriais).catch(() => {});
+  }, []);
+
   // ── Produto handlers ──
   function abrirProdForm(produto?: Produto) {
+    setProdTab("info");
     if (produto) {
       setEditandoProd(produto);
       setProdForm({
@@ -106,9 +117,19 @@ export function ProdutosClient() {
         categoriaId: produto.categoria.id,
         custoEstimado: produto.custoEstimado ? String(produto.custoEstimado) : "",
       });
+      // Carregar receita existente
+      setReceitaLoading(true);
+      fetch(`/api/produtos/${produto.id}/receita`)
+        .then((r) => r.json())
+        .then((itens: any[]) => {
+          setReceita(itens.map((i) => ({ materialId: i.materialId, quantidade: String(Number(i.quantidade)) })));
+        })
+        .catch(() => setReceita([]))
+        .finally(() => setReceitaLoading(false));
     } else {
       setEditandoProd(null);
       setProdForm({ nome: "", descricao: "", preco: "", categoriaId: "", custoEstimado: "" });
+      setReceita([]);
     }
     setOpenProdForm(true);
   }
@@ -135,6 +156,19 @@ export function ProdutosClient() {
     });
 
     if (res.ok) {
+      const prod = await res.json();
+      // Salvar receita se tiver itens
+      const receitaValida = receita.filter((r) => r.materialId && parseFloat(r.quantidade) > 0);
+      if (receitaValida.length > 0 || editandoProd) {
+        await fetch(`/api/produtos/${prod.id}/receita`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(receitaValida.map((r) => ({
+            materialId: r.materialId,
+            quantidade: parseFloat(r.quantidade),
+          }))),
+        });
+      }
       setOpenProdForm(false);
       fetchProdutos();
     }
@@ -451,71 +485,150 @@ export function ProdutosClient() {
 
       {/* ── Modal Produto ──────────────────────────────────────────────────── */}
       <Dialog open={openProdForm} onOpenChange={setOpenProdForm}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editandoProd ? "Editar Produto" : "Novo Produto"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Nome *</Label>
-              <Input
-                value={prodForm.nome}
-                onChange={(e) => setProdForm((f) => ({ ...f, nome: e.target.value }))}
-                placeholder="Ex: Moqueca de Camarão"
-              />
-            </div>
-            <div>
-              <Label>Descrição</Label>
-              <Textarea
-                rows={2}
-                value={prodForm.descricao}
-                onChange={(e) => setProdForm((f) => ({ ...f, descricao: e.target.value }))}
-                placeholder="Descrição breve do produto..."
-              />
-            </div>
-            <div>
-              <Label>Categoria *</Label>
-              <Select
-                value={prodForm.categoriaId}
-                onValueChange={(v) => setProdForm((f) => ({ ...f, categoriaId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar categoria..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.icone} {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label>Preço de Venda (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0,00"
-                  value={prodForm.preco}
-                  onChange={(e) => setProdForm((f) => ({ ...f, preco: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Custo Estimado (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Para calcular margem"
-                  value={prodForm.custoEstimado}
-                  onChange={(e) => setProdForm((f) => ({ ...f, custoEstimado: e.target.value }))}
-                />
-              </div>
-            </div>
+
+          {/* Abas Info / Receita */}
+          <div className="flex gap-1 border-b mb-2">
+            <button
+              onClick={() => setProdTab("info")}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${prodTab === "info" ? "border-orange-500 text-orange-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+            >
+              Informações
+            </button>
+            <button
+              onClick={() => setProdTab("receita")}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${prodTab === "receita" ? "border-orange-500 text-orange-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Receita
+              {receita.filter((r) => r.materialId).length > 0 && (
+                <span className="bg-orange-100 text-orange-700 text-xs px-1.5 py-0.5 rounded-full">
+                  {receita.filter((r) => r.materialId).length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {prodTab === "info" && (
+            <div className="space-y-4">
+              <div>
+                <Label>Nome *</Label>
+                <Input
+                  value={prodForm.nome}
+                  onChange={(e) => setProdForm((f) => ({ ...f, nome: e.target.value }))}
+                  placeholder="Ex: Moqueca de Camarão"
+                />
+              </div>
+              <div>
+                <Label>Descrição</Label>
+                <Textarea
+                  rows={2}
+                  value={prodForm.descricao}
+                  onChange={(e) => setProdForm((f) => ({ ...f, descricao: e.target.value }))}
+                  placeholder="Descrição breve do produto..."
+                />
+              </div>
+              <div>
+                <Label>Categoria *</Label>
+                <Select
+                  value={prodForm.categoriaId}
+                  onValueChange={(v) => setProdForm((f) => ({ ...f, categoriaId: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar categoria..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categorias.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.icone} {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Preço de Venda (R$) *</Label>
+                  <Input
+                    type="number" step="0.01" min="0" placeholder="0,00"
+                    value={prodForm.preco}
+                    onChange={(e) => setProdForm((f) => ({ ...f, preco: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Custo Estimado (R$)</Label>
+                  <Input
+                    type="number" step="0.01" min="0" placeholder="Para calcular margem"
+                    value={prodForm.custoEstimado}
+                    onChange={(e) => setProdForm((f) => ({ ...f, custoEstimado: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {prodTab === "receita" && (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              <p className="text-xs text-gray-500">
+                Defina quais materiais do estoque são consumidos ao vender este produto. A baixa será feita automaticamente ao entregar o pedido.
+              </p>
+              {receitaLoading ? (
+                <p className="text-center text-sm text-gray-400 py-4">Carregando...</p>
+              ) : (
+                <>
+                  {receita.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        {idx === 0 && <Label className="text-xs">Material</Label>}
+                        <Select
+                          value={item.materialId}
+                          onValueChange={(v) => setReceita((r) => r.map((x, i) => i === idx ? { ...x, materialId: v } : x))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecionar..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {materiais.map((m: any) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.nome} ({m.unidade})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-24">
+                        {idx === 0 && <Label className="text-xs">Qtd.</Label>}
+                        <Input
+                          type="number" step="0.001" min="0.001" placeholder="0.000"
+                          value={item.quantidade}
+                          onChange={(e) => setReceita((r) => r.map((x, i) => i === idx ? { ...x, quantidade: e.target.value } : x))}
+                        />
+                      </div>
+                      <div className={idx === 0 ? "mt-5" : ""}>
+                        {idx === 0 && <Label className="text-xs invisible">Del</Label>}
+                        <button
+                          onClick={() => setReceita((r) => r.filter((_, i) => i !== idx))}
+                          className="p-2 text-red-400 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={() => setReceita((r) => [...r, { materialId: "", quantidade: "" }])}
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> Adicionar ingrediente
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenProdForm(false)}>Cancelar</Button>
             <Button onClick={salvarProduto}>{editandoProd ? "Salvar" : "Criar"}</Button>

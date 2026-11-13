@@ -134,10 +134,14 @@ model Material {
   id              String   @id @default(cuid())
   nome            String
   descricao       String?
-  unidade         String   // kg, L, un, cx, etc.
+  categoria       String   @default("Ingrediente") // Ingrediente, Embalagem, Bebida, Limpeza, Outros
+  unidade         String
   quantidadeAtual Decimal  @db.Decimal(10, 3) @default(0)
-  quantidadeMin   Decimal  @db.Decimal(10, 3) @default(0) // alerta de mínimo
+  quantidadeMin   Decimal  @db.Decimal(10, 3) @default(0)
   custoUnitario   Decimal? @db.Decimal(10, 2)
+  custoMedio      Decimal? @db.Decimal(10, 2) // custo médio ponderado
+  tamEmbalagem    Decimal? @db.Decimal(10, 3)
+  unidadeEmbalagem String?
   fornecedorId    String?
   ativo           Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -171,6 +175,8 @@ enum EstoqueTipo {
   SAIDA
   AJUSTE
   PERDA
+  SOBRA
+  DESPERDICIO
 }
 
 // ─── Receitas (ligação produto ↔ materiais) ───────────────────────────────
