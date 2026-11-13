@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Clock } from "lucide-react";
+import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Clock, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,12 @@ export function PedidosClient() {
   const [statusFiltro, setStatusFiltro] = useState("");
   const [openNovo, setOpenNovo] = useState(false);
   const [openPagto, setOpenPagto] = useState<{ pedido: any; next: string } | null>(null);
+  const [openEditar, setOpenEditar] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    tipoPedido: "RETIRADA", nomeCliente: "", observacao: "",
+    horarioEntrega: "", taxaEntrega: "",
+    itens: [{ produtoId: "", quantidade: 1, observacao: "" }] as ItemForm[],
+  });
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [formaPagto, setFormaPagto] = useState("DINHEIRO");
   const [novoForm, setNovoForm] = useState({
@@ -123,6 +129,66 @@ export function PedidosClient() {
       alert(data?.error || "Erro ao remover pedido");
     }
   }
+
+  function abrirEditar(pedido: any) {
+    setEditForm({
+      tipoPedido: pedido.tipoPedido || "RETIRADA",
+      nomeCliente: pedido.nomeCliente || "",
+      observacao: pedido.observacao || "",
+      horarioEntrega: pedido.horarioEntrega || "",
+      taxaEntrega: pedido.taxaEntrega ? String(pedido.taxaEntrega) : "",
+      itens: pedido.itens.map((it: any) => ({
+        produtoId: it.produtoId,
+        quantidade: it.quantidade,
+        observacao: it.observacao || "",
+      })),
+    });
+    setOpenEditar(pedido);
+  }
+
+  async function salvarEdicao() {
+    if (!openEditar) return;
+    const itensValidos = editForm.itens.filter((i) => i.produtoId && i.quantidade > 0);
+    if (itensValidos.length === 0) return alert("Adicione pelo menos um item");
+
+    const isDelivery = editForm.tipoPedido === "DELIVERY";
+
+    const res = await fetch(`/api/pedidos/${openEditar.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nomeCliente: editForm.nomeCliente,
+        observacao: editForm.observacao,
+        tipoPedido: editForm.tipoPedido,
+        horarioEntrega: isDelivery ? editForm.horarioEntrega : null,
+        taxaEntrega: isDelivery ? Number(editForm.taxaEntrega) || 0 : 0,
+        itens: itensValidos.map((i) => ({ ...i, quantidade: Number(i.quantidade) })),
+      }),
+    });
+
+    if (res.ok) {
+      setOpenEditar(null);
+      fetchPedidos();
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Erro ao salvar edição");
+    }
+  }
+
+  const addItemEditar = () =>
+    setEditForm((f) => ({ ...f, itens: [...f.itens, { produtoId: "", quantidade: 1, observacao: "" }] }));
+
+  const removeItemEditar = (idx: number) =>
+    setEditForm((f) => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }));
+
+  const calcTotalEditar = () => {
+    const subtotal = editForm.itens.reduce((s, item) => {
+      const p = produtos.find((pr) => pr.id === item.produtoId);
+      return s + (p ? Number(p.preco) * item.quantidade : 0);
+    }, 0);
+    const taxa = editForm.tipoPedido === "DELIVERY" ? Number(editForm.taxaEntrega) || 0 : 0;
+    return subtotal + taxa;
+  };
 
   const addItem = () =>
     setNovoForm((f) => ({ ...f, itens: [...f.itens, { produtoId: "", quantidade: 1, observacao: "" }] }));
@@ -249,14 +315,25 @@ export function PedidosClient() {
                     ))}
                   </div>
 
-                  {/* Remover pedido */}
-                  <button
-                    onClick={() => removerPedido(pedido.id)}
-                    className="w-full px-2.5 py-2 rounded-md text-red-600 hover:bg-red-50 border border-red-200 text-xs font-medium flex items-center justify-center gap-1"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    Remover
-                  </button>
+                  {/* Editar / Remover pedido */}
+                  <div className="flex gap-1">
+                    {pedido.status !== "PAGO" && (
+                      <button
+                        onClick={() => abrirEditar(pedido)}
+                        className="flex-1 px-2.5 py-2 rounded-md text-blue-600 hover:bg-blue-50 border border-blue-200 text-xs font-medium flex items-center justify-center gap-1"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Editar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => removerPedido(pedido.id)}
+                      className="flex-1 px-2.5 py-2 rounded-md text-red-600 hover:bg-red-50 border border-red-200 text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Remover
+                    </button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -401,6 +478,147 @@ export function PedidosClient() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNovo(false)}>Cancelar</Button>
             <Button onClick={criarPedido}>Criar Pedido</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Editar Pedido */}
+      <Dialog open={!!openEditar} onOpenChange={(open) => { if (!open) setOpenEditar(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Pedido #{openEditar?.numero}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Tipo</Label>
+                <Select
+                  value={editForm.tipoPedido}
+                  onValueChange={(v) => setEditForm((f) => ({ ...f, tipoPedido: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RETIRADA">Retirada</SelectItem>
+                    <SelectItem value="DELIVERY">Delivery</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Nome do Cliente</Label>
+                <Input
+                  placeholder="Ex: João"
+                  value={editForm.nomeCliente}
+                  onChange={(e) => setEditForm((f) => ({ ...f, nomeCliente: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {editForm.tipoPedido === "DELIVERY" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Horário de Entrega</Label>
+                  <Input
+                    type="time"
+                    value={editForm.horarioEntrega}
+                    onChange={(e) => setEditForm((f) => ({ ...f, horarioEntrega: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Taxa de Entrega (R$)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0,00"
+                    value={editForm.taxaEntrega}
+                    onChange={(e) => setEditForm((f) => ({ ...f, taxaEntrega: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label>Observação</Label>
+              <Textarea
+                placeholder="Alguma observação geral?"
+                value={editForm.observacao}
+                onChange={(e) => setEditForm((f) => ({ ...f, observacao: e.target.value }))}
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Itens</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addItemEditar}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar
+                </Button>
+              </div>
+
+              {editForm.itens.map((item, idx) => (
+                <div key={idx} className="flex gap-2 items-end p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <Select
+                      value={item.produtoId}
+                      onValueChange={(v) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          itens: f.itens.map((it, i) => (i === idx ? { ...it, produtoId: v } : it)),
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar produto..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {produtos.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.nome} — {formatCurrency(p.preco)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-20">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={item.quantidade}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          itens: f.itens.map((it, i) =>
+                            i === idx ? { ...it, quantidade: parseInt(e.target.value) || 1 } : it
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500"
+                    onClick={() => removeItemEditar(idx)}
+                    disabled={editForm.itens.length === 1}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+
+              <div className="text-right font-bold text-lg mt-2">
+                Total: {formatCurrency(calcTotalEditar())}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditar(null)}>Cancelar</Button>
+            <Button onClick={salvarEdicao}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
