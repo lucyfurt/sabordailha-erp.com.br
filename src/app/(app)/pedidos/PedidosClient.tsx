@@ -423,7 +423,7 @@ export function PedidosClient() {
                     <Input
                       type="number"
                       min={0}
-                      step={0.50}
+                      step="0.50"
                       placeholder="0,00"
                       value={novoForm.taxaEntrega || ""}
                       onChange={(e) => setNovoForm((f) => ({ ...f, taxaEntrega: parseFloat(e.target.value) || 0 }))}
@@ -494,6 +494,11 @@ export function PedidosClient() {
               ))}
 
               <div className="text-right font-bold text-lg mt-2">
+                {novoForm.formaEntrega === "DELIVERY" && novoForm.taxaEntrega > 0 && (
+                  <p className="text-sm font-normal text-gray-500">
+                    Itens: {formatCurrency(calcTotal() - novoForm.taxaEntrega)} + Taxa: {formatCurrency(novoForm.taxaEntrega)}
+                  </p>
+                )}
                 Total: {formatCurrency(calcTotal())}
               </div>
             </div>
@@ -541,26 +546,36 @@ export function PedidosClient() {
             </div>
 
             {editForm.formaEntrega === "DELIVERY" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Label>Endereço de Entrega</Label>
-                  <Input
-                    placeholder="Rua, número, bairro..."
-                    value={editForm.enderecoEntrega}
-                    onChange={(e) => setEditForm((f) => ({ ...f, enderecoEntrega: e.target.value }))}
-                  />
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>Endereço de Entrega</Label>
+                    <Input
+                      placeholder="Rua, número, bairro..."
+                      value={editForm.enderecoEntrega}
+                      onChange={(e) => setEditForm((f) => ({ ...f, enderecoEntrega: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label>Taxa de Entrega (R$)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.50"
+                      placeholder="0,00"
+                      value={editForm.taxaEntrega}
+                      onChange={(e) => setEditForm((f) => ({ ...f, taxaEntrega: e.target.value }))}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label>Taxa de Entrega (R$)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.50"
-                    placeholder="0,00"
-                    value={editForm.taxaEntrega}
-                    onChange={(e) => setEditForm((f) => ({ ...f, taxaEntrega: e.target.value }))}
-                  />
-                </div>
+                {Number(editForm.taxaEntrega) > 0 && (
+                  <div className="flex justify-between items-center text-sm bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                    <span className="text-gray-500">Subtotal + taxa</span>
+                    <span className="font-medium text-orange-700">
+                      {formatCurrency(calcTotalEditar() - Number(editForm.taxaEntrega))} + {formatCurrency(Number(editForm.taxaEntrega))} = <strong>{formatCurrency(calcTotalEditar())}</strong>
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -635,6 +650,11 @@ export function PedidosClient() {
               ))}
 
               <div className="text-right font-bold text-lg mt-2">
+                {editForm.formaEntrega === "DELIVERY" && Number(editForm.taxaEntrega) > 0 && (
+                  <p className="text-sm font-normal text-gray-500">
+                    Itens: {formatCurrency(calcTotalEditar() - (Number(editForm.taxaEntrega) || 0))} + Taxa: {formatCurrency(Number(editForm.taxaEntrega))}
+                  </p>
+                )}
                 Total: {formatCurrency(calcTotalEditar())}
               </div>
             </div>
