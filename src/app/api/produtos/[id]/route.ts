@@ -37,7 +37,11 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   try {
-    await prisma.produto.delete({ where: { id: params.id } });
+    // Soft-delete: desativa o produto em vez de apagar, para preservar o histórico de pedidos.
+    await prisma.produto.update({
+      where: { id: params.id },
+      data: { ativo: false },
+    });
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Erro ao remover produto" }, { status: 500 });

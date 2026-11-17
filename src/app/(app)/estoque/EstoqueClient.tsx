@@ -100,8 +100,8 @@ export function EstoqueClient() {
   const [novoForm, setNovoForm] = useState(formVazio);
   const [editForm, setEditForm] = useState(formVazio);
   const [movForm, setMovForm] = useState({
-    tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "",
-    nrEmbalagens: "", tamEmbalagem: "",
+    tipo: "ENTRADA", quantidade: "", motivo: "",
+    nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "",
   });
   const [removendo, setRemovendo] = useState(false);
 
@@ -227,11 +227,17 @@ export function EstoqueClient() {
     if (!movForm.quantidade && !temEmbalagens) return alert("Informe a quantidade");
 
     let qtdFinal = 0;
+    let custoTotal: number | undefined;
+
     if (movForm.tipo === "ENTRADA" && temEmbalagens) {
       const tam = parseFloat(movForm.tamEmbalagem || String(Number((openMov as any).tamEmbalagem)));
       qtdFinal = parseFloat(movForm.nrEmbalagens) * tam;
+      // Total = nº de embalagens × valor de cada embalagem
+      if (movForm.valorEmbalagem) custoTotal = parseFloat(movForm.nrEmbalagens) * parseFloat(movForm.valorEmbalagem);
     } else {
       qtdFinal = parseFloat(movForm.quantidade);
+      // Total = quantidade × valor por kg
+      if (movForm.tipo === "ENTRADA" && movForm.valorKg) custoTotal = qtdFinal * parseFloat(movForm.valorKg);
     }
 
     const res = await fetch("/api/estoque", {
@@ -244,14 +250,14 @@ export function EstoqueClient() {
           tipo: movForm.tipo,
           quantidade: qtdFinal,
           motivo: movForm.motivo || undefined,
-          custoTotal: movForm.custoTotal ? parseFloat(movForm.custoTotal) : undefined,
+          custoTotal,
         },
       }),
     });
 
     if (res.ok) {
       setOpenMov(null);
-      setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "", nrEmbalagens: "", tamEmbalagem: "" });
+      setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" });
       fetchMateriais();
     } else {
       const err = await res.json();
@@ -380,7 +386,7 @@ export function EstoqueClient() {
           </TabsList>
 
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => { setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "", nrEmbalagens: "", tamEmbalagem: "" }); setOpenNovo(true); }}>
+            <Button size="sm" variant="outline" onClick={() => { setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); setOpenNovo(true); }}>
               <ArrowUp className="h-3.5 w-3.5 mr-1 text-green-600" /> Nova Entrada
             </Button>
             <Button size="sm" onClick={() => setOpenNovo(true)}>
@@ -462,7 +468,7 @@ export function EstoqueClient() {
                       <Button
                         size="sm"
                         className="bg-green-600 hover:bg-green-700 text-xs"
-                        onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "", nrEmbalagens: "", tamEmbalagem: "" }); }}
+                        onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }}
                       >
                         <ArrowUp className="h-3 w-3 mr-1" /> Comprar
                       </Button>
@@ -601,11 +607,11 @@ export function EstoqueClient() {
                           <TableCell>
                             <div className="flex gap-1">
                               <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 border-green-200" title="Entrada"
-                                onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "", nrEmbalagens: "", tamEmbalagem: "" }); }}>
+                                onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }}>
                                 <ArrowUp className="h-3.5 w-3.5" />
                               </Button>
                               <Button size="icon" variant="outline" className="h-7 w-7 text-red-500 border-red-200" title="Saída"
-                                onClick={() => { setOpenMov(mat); setMovForm({ tipo: "SAIDA", quantidade: "", motivo: "", custoTotal: "", nrEmbalagens: "", tamEmbalagem: "" }); }}>
+                                onClick={() => { setOpenMov(mat); setMovForm({ tipo: "SAIDA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }}>
                                 <ArrowDown className="h-3.5 w-3.5" />
                               </Button>
                               <Button size="icon" variant="outline" className="h-7 w-7 text-gray-500" title="Histórico"
@@ -690,7 +696,7 @@ export function EstoqueClient() {
                           <Button
                             size="sm"
                             className="bg-green-600 hover:bg-green-700 flex-shrink-0"
-                            onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", custoTotal: "", nrEmbalagens: "", tamEmbalagem: "" }); }}
+                            onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }}
                           >
                             <ArrowUp className="h-3.5 w-3.5 mr-1" /> Registrar compra
                           </Button>
@@ -907,7 +913,7 @@ export function EstoqueClient() {
                     <div>
                       <Label className="text-xs">Nº de embalagens</Label>
                       <Input
-                        type="number" step="1" min="1" placeholder="Ex: 3"
+                        type="number" step="1" min="1" placeholder="Ex: 4"
                         value={movForm.nrEmbalagens}
                         onChange={(e) => setMovForm((f) => ({ ...f, nrEmbalagens: e.target.value, quantidade: "" }))}
                       />
@@ -923,11 +929,31 @@ export function EstoqueClient() {
                     </div>
                   </div>
 
-                  {movForm.nrEmbalagens && (movForm.tamEmbalagem || openMov.tamEmbalagem) && (
-                    <p className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded">
-                      Total: {(parseFloat(movForm.nrEmbalagens) * parseFloat(movForm.tamEmbalagem || String(Number(openMov.tamEmbalagem)))).toFixed(3)} {openMov.unidade}
-                    </p>
-                  )}
+                  <div>
+                    <Label className="text-xs">Valor de cada embalagem (R$)</Label>
+                    <Input
+                      type="number" step="0.01" min="0" placeholder="Ex: 23,00"
+                      value={movForm.valorEmbalagem}
+                      onChange={(e) => setMovForm((f) => ({ ...f, valorEmbalagem: e.target.value }))}
+                    />
+                  </div>
+
+                  {movForm.nrEmbalagens && (movForm.tamEmbalagem || openMov.tamEmbalagem) && (() => {
+                    const tam = parseFloat(movForm.tamEmbalagem || String(Number(openMov.tamEmbalagem)));
+                    const nr = parseFloat(movForm.nrEmbalagens);
+                    const valEmb = parseFloat(movForm.valorEmbalagem) || 0;
+                    return (
+                      <div className="text-xs space-y-0.5 bg-green-100 px-2 py-2 rounded">
+                        <p className="font-semibold text-green-800">Total: {(nr * tam).toFixed(3)} {openMov.unidade}</p>
+                        {valEmb > 0 && (
+                          <>
+                            <p className="text-green-700">Valor total: {formatCurrency(nr * valEmb)}</p>
+                            <p className="text-green-600">Valor por {openMov.unidade}: {formatCurrency(valEmb / tam)}</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     <div className="flex-1 border-t" />
@@ -935,34 +961,30 @@ export function EstoqueClient() {
                     <div className="flex-1 border-t" />
                   </div>
 
-                  <div>
-                    <Label className="text-xs">Total ({openMov.unidade})</Label>
-                    <Input
-                      type="number" step="0.001" min="0"
-                      value={
-                        movForm.nrEmbalagens && (movForm.tamEmbalagem || openMov.tamEmbalagem)
-                          ? String((parseFloat(movForm.nrEmbalagens) * parseFloat(movForm.tamEmbalagem || String(Number(openMov.tamEmbalagem)))).toFixed(3))
-                          : movForm.quantidade
-                      }
-                      onChange={(e) => setMovForm((f) => ({ ...f, quantidade: e.target.value, nrEmbalagens: "", tamEmbalagem: "" }))}
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Total ({openMov.unidade})</Label>
+                      <Input
+                        type="number" step="0.001" min="0" placeholder="Ex: 20"
+                        value={movForm.quantidade}
+                        onChange={(e) => setMovForm((f) => ({ ...f, quantidade: e.target.value, nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "" }))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Valor por {openMov.unidade} (R$)</Label>
+                      <Input
+                        type="number" step="0.01" min="0" placeholder="Ex: 4,60"
+                        value={movForm.valorKg}
+                        onChange={(e) => setMovForm((f) => ({ ...f, valorKg: e.target.value }))}
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <Label className="text-xs">Valor total pago (R$)</Label>
-                    <Input
-                      type="number" step="0.01" min="0" placeholder="Ex: 25,00"
-                      value={movForm.custoTotal}
-                      onChange={(e) => setMovForm((f) => ({ ...f, custoTotal: e.target.value }))}
-                    />
-                  </div>
-                  {movForm.custoTotal && (movForm.nrEmbalagens || movForm.quantidade) && (() => {
-                    const qtd = movForm.nrEmbalagens && (movForm.tamEmbalagem || openMov.tamEmbalagem)
-                      ? parseFloat(movForm.nrEmbalagens) * parseFloat(movForm.tamEmbalagem || String(Number(openMov.tamEmbalagem)))
-                      : parseFloat(movForm.quantidade);
-                    return qtd > 0 ? (
-                      <p className="text-xs text-green-700 font-medium">
-                        Custo/{openMov.unidade}: {formatCurrency(parseFloat(movForm.custoTotal) / qtd)}
+                  {movForm.quantidade && movForm.valorKg && (() => {
+                    const qtd = parseFloat(movForm.quantidade);
+                    const vkg = parseFloat(movForm.valorKg);
+                    return qtd > 0 && vkg > 0 ? (
+                      <p className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded">
+                        Valor total: {formatCurrency(qtd * vkg)}
                       </p>
                     ) : null;
                   })()}
