@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import {
   Plus, Search, AlertTriangle, ArrowUp, ArrowDown, Settings2,
   Pencil, Trash2, BarChart2, History, ShoppingCart, Package,
-  TrendingDown, DollarSign, ChevronRight,
+  TrendingDown, DollarSign, ChevronRight, Clock, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +44,14 @@ type Material = {
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const UNIDADES = ["kg", "g", "mg", "L", "ml", "un", "cx", "dz", "sc", "pc", "fardo", "bandeja", "garrafa", "lata", "pct"];
-const UNIDADES_EMBALAGEM = ["kg", "g", "mg", "L", "ml", "un", "cx", "pct"];
-const CATEGORIAS_MATERIAL = ["Ingrediente", "Embalagem", "Bebida", "Limpeza", "Outros"];
+const UNIDADES = ["kg", "g", "L", "ml", "un", "cx", "dz", "sc", "pc", "fardo", "bandeja", "garrafa", "lata", "pct"];
+const UNIDADES_EMBALAGEM = ["kg", "g", "L", "ml", "un", "cx", "pct"];
+const CATEGORIAS_MATERIAL = [
+  "Ingrediente", "Cereais e Grãos", "Massas", "Leguminosas", "Temperos e Especiarias",
+  "Óleos e Gorduras", "Hortaliças e Legumes", "Enlatados e Conservas",
+  "Laticínios e Ovos", "Frios e Embutidos", "Carnes", "Aves", "Pescados",
+  "Embalagem", "Bebida", "Limpeza", "Outros",
+];
 
 const TIPO_LABELS: Record<string, string> = {
   ENTRADA: "Entrada",
@@ -67,6 +72,81 @@ const TIPO_CORES: Record<string, string> = {
 };
 
 // ─── Componente ───────────────────────────────────────────────────────────────
+
+// ─── Linha memoizada da tabela de produtos ──────────────────────────────────
+// Evita que a digitação em modais re-renderize a tabela inteira.
+const MaterialRow = memo(function MaterialRow({ mat, isCritico, onEditar, onHistorico, onEntrada, onSaida, onRemover }: any) {
+  return (
+    <TableRow className={isCritico(mat) ? "bg-red-50" : ""}>
+      <TableCell>
+        <div>
+          <p className="font-medium text-sm">{mat.nome}</p>
+          {mat.descricao && <p className="text-xs text-gray-400 hidden sm:block">{mat.descricao}</p>}
+          {mat.tamEmbalagem && (
+            <p className="text-xs text-gray-400 hidden lg:block">
+              Emb: {Number(mat.tamEmbalagem)}{mat.unidadeEmbalagem || mat.unidade}
+            </p>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-xs text-gray-500 hidden sm:table-cell">{mat.categoria}</TableCell>
+      <TableCell className="text-sm">{mat.unidade}</TableCell>
+      <TableCell>
+        <span className={`font-semibold text-sm ${isCritico(mat) ? "text-red-600" : "text-gray-900"}`}>
+          {Number(mat.quantidadeAtual).toFixed(3)}
+        </span>
+      </TableCell>
+      <TableCell className="text-xs text-gray-500 hidden sm:table-cell">
+        {Number(mat.quantidadeMin) > 0 ? Number(mat.quantidadeMin).toFixed(3) : "-"}
+      </TableCell>
+      <TableCell className="text-sm hidden md:table-cell">
+        {mat.custoUnitario
+          ? <span>{formatCurrency(Number(mat.custoUnitario))}<span className="text-gray-400 text-xs">/{mat.unidade}</span></span>
+          : "-"}
+      </TableCell>
+      <TableCell className="text-sm font-semibold text-green-700 hidden md:table-cell">
+        {mat.custoUnitario ? formatCurrency(Number(mat.quantidadeAtual) * Number(mat.custoUnitario)) : "-"}
+      </TableCell>
+      <TableCell>
+        {Number(mat.quantidadeAtual) === 0 ? (
+          <Badge variant="destructive" className="text-xs">Zerado</Badge>
+        ) : isCritico(mat) ? (
+          <Badge variant="destructive" className="text-xs whitespace-nowrap">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            <span className="hidden sm:inline">Baixo</span>
+            <span className="sm:hidden">!</span>
+          </Badge>
+        ) : (
+          <Badge variant="success" className="text-xs">OK</Badge>
+        )}
+      </TableCell>
+      <TableCell>
+        <div className="flex gap-1">
+          <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 border-green-200" title="Entrada"
+            onClick={() => onEntrada(mat)}>
+            <ArrowUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant="outline" className="h-7 w-7 text-red-500 border-red-200" title="Saída"
+            onClick={() => onSaida(mat)}>
+            <ArrowDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant="outline" className="h-7 w-7 text-gray-500" title="Histórico"
+            onClick={() => onHistorico(mat)}>
+            <History className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant="outline" className="h-7 w-7 text-blue-600 border-blue-200" title="Editar"
+            onClick={() => onEditar(mat)}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant="outline" className="h-7 w-7 text-gray-400 hover:text-red-600 hover:border-red-200" title="Remover"
+            onClick={() => onRemover(mat)}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
 
 export function EstoqueClient() {
   const [aba, setAba] = useState("dashboard");
@@ -138,18 +218,34 @@ export function EstoqueClient() {
 
   useEffect(() => { if (openPainel) carregarPainel(); }, [openPainel, painelDia]);
 
-  async function abrirHistorico(mat: Material) {
+  // Dashboard inteligente
+  const [dashData, setDashData] = useState<any>(null);
+  const [dashLoading, setDashLoading] = useState(false);
+  const [periodo, setPeriodo] = useState(30);
+
+  const fetchDashboard = useCallback(async () => {
+    setDashLoading(true);
+    try {
+      const res = await fetch(`/api/estoque/dashboard?periodo=${periodo}`);
+      if (res.ok) setDashData(await res.json());
+    } catch { /* ignora */ }
+    setDashLoading(false);
+  }, [periodo]);
+
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  const abrirHistorico = useCallback(async (mat: Material) => {
     setOpenHistorico(mat);
     setHistoricoLoading(true);
     const res = await fetch(`/api/estoque/${mat.id}`);
     const data = await res.json();
     setHistoricoMat(data.movimentacoes || []);
     setHistoricoLoading(false);
-  }
+  }, []);
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
-  function abrirEditar(mat: Material) {
+  const abrirEditar = useCallback((mat: Material) => {
     setEditForm({
       nome: mat.nome,
       descricao: mat.descricao || "",
@@ -162,8 +258,17 @@ export function EstoqueClient() {
       unidadeEmbalagem: mat.unidadeEmbalagem || mat.unidade,
     });
     setOpenEditar(mat);
-  }
+  }, []);
 
+  // Handlers estáveis para os botões de Entrada/Saída da tabela
+  const onEntrada = useCallback((mat: Material) => {
+    setOpenMov(mat);
+    setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" });
+  }, []);
+  const onSaida = useCallback((mat: Material) => {
+    setOpenMov(mat);
+    setMovForm({ tipo: "SAIDA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" });
+  }, []);
   async function criarMaterial() {
     if (!novoForm.nome || !novoForm.unidade) return alert("Preencha nome e unidade");
     const res = await fetch("/api/estoque", {
@@ -267,7 +372,7 @@ export function EstoqueClient() {
 
   // ─── Stats ────────────────────────────────────────────────────────────────
 
-  const isCritico = (m: Material) => Number(m.quantidadeAtual) <= Number(m.quantidadeMin) && Number(m.quantidadeMin) > 0;
+  const isCritico = useCallback((m: Material) => Number(m.quantidadeAtual) <= Number(m.quantidadeMin) && Number(m.quantidadeMin) > 0, []);
 
   const stats = {
     total: materiais.length,
@@ -397,37 +502,31 @@ export function EstoqueClient() {
 
         {/* ── ABA DASHBOARD ─────────────────────────────────────────────── */}
         <TabsContent value="dashboard" className="space-y-4 mt-4">
-          {/* Cards de stats */}
+          {/* Seletor de período */}
+          <div className="flex items-center gap-2 justify-end">
+            <span className="text-xs text-gray-500">Período de análise:</span>
+            {["7", "15", "30"].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriodo(Number(p))}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                  String(periodo) === p ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200 hover:border-orange-300"
+                }`}
+              >
+                {p} dias
+              </button>
+            ))}
+          </div>
+
+          {/* Cards de indicadores */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card>
-              <CardContent className="p-3 md:p-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-50 rounded-lg"><Package className="h-4 w-4 text-blue-600" /></div>
-                  <div>
-                    <p className="text-xs text-gray-500">Produtos</p>
-                    <p className="text-xl font-bold">{stats.total}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
             <Card>
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-green-50 rounded-lg"><DollarSign className="h-4 w-4 text-green-600" /></div>
                   <div>
-                    <p className="text-xs text-gray-500">Valor em estoque</p>
-                    <p className="text-base font-bold text-green-700 truncate">{formatCurrency(stats.valorTotal)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className={stats.criticos > 0 ? "border-red-200 bg-red-50" : ""}>
-              <CardContent className="p-3 md:p-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-red-100 rounded-lg"><AlertTriangle className="h-4 w-4 text-red-600" /></div>
-                  <div>
-                    <p className="text-xs text-gray-500">Estoque baixo</p>
-                    <p className="text-xl font-bold text-red-600">{stats.criticos}</p>
+                    <p className="text-xs text-gray-500">Valor total do estoque</p>
+                    <p className="text-base font-bold text-green-700 truncate">{formatCurrency(dashData?.valorTotal ?? stats.valorTotal)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -435,42 +534,172 @@ export function EstoqueClient() {
             <Card>
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-orange-50 rounded-lg"><TrendingDown className="h-4 w-4 text-orange-600" /></div>
+                  <div className="p-1.5 bg-blue-50 rounded-lg"><Package className="h-4 w-4 text-blue-600" /></div>
                   <div>
-                    <p className="text-xs text-gray-500">Sem estoque</p>
-                    <p className="text-xl font-bold text-orange-600">{stats.semEstoque}</p>
+                    <p className="text-xs text-gray-500">Produtos cadastrados</p>
+                    <p className="text-xl font-bold">{dashData?.totalProdutos ?? stats.total}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className={(dashData?.estoqueBaixo ?? stats.criticos) > 0 ? "border-red-200 bg-red-50" : ""}>
+              <CardContent className="p-3 md:p-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-red-100 rounded-lg"><AlertTriangle className="h-4 w-4 text-red-600" /></div>
+                  <div>
+                    <p className="text-xs text-gray-500">Estoque baixo</p>
+                    <p className="text-xl font-bold text-red-600">{dashData?.estoqueBaixo ?? stats.criticos}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3 md:p-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-amber-50 rounded-lg"><Clock className="h-4 w-4 text-amber-600" /></div>
+                  <div>
+                    <p className="text-xs text-gray-500">Vencendo (7 dias)</p>
+                    <p className="text-xl font-bold text-gray-400" title="Requer controle de lotes">—</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3 md:p-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-red-50 rounded-lg"><XCircle className="h-4 w-4 text-red-500" /></div>
+                  <div>
+                    <p className="text-xs text-gray-500">Vencidos</p>
+                    <p className="text-xl font-bold text-gray-400" title="Requer controle de lotes">—</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3 md:p-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-50 rounded-lg"><TrendingDown className="h-4 w-4 text-blue-600" /></div>
+                  <div>
+                    <p className="text-xs text-gray-500">Consumo no período</p>
+                    <p className="text-base font-bold text-blue-700 truncate">{formatCurrency(dashData?.consumoPeriodo ?? 0)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3 md:p-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-orange-50 rounded-lg"><AlertTriangle className="h-4 w-4 text-orange-600" /></div>
+                  <div>
+                    <p className="text-xs text-gray-500">Perdas no período</p>
+                    <p className="text-base font-bold text-orange-700 truncate">{formatCurrency(dashData?.perdasPeriodo ?? 0)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-3 md:p-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-emerald-50 rounded-lg"><ShoppingCart className="h-4 w-4 text-emerald-600" /></div>
+                  <div>
+                    <p className="text-xs text-gray-500">Compras no período</p>
+                    <p className="text-base font-bold text-emerald-700 truncate">{formatCurrency(dashData?.comprasPeriodo ?? 0)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Alertas de estoque baixo */}
-          {criticosList.length > 0 && (
-            <Card className="border-red-200">
+          {/* O que preciso comprar? */}
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm text-gray-700 flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-orange-600" />
+                O que preciso comprar?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {dashLoading ? (
+                <p className="text-center py-4 text-gray-400">Calculando...</p>
+              ) : !dashData || dashData.itensComprar.length === 0 ? (
+                <p className="text-center py-4 text-gray-400">Nada precisa ser comprado agora 🎉</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Disponível</TableHead>
+                        <TableHead>Mínimo</TableHead>
+                        <TableHead className="hidden sm:table-cell">Consumo médio/dia</TableHead>
+                        <TableHead className="hidden sm:table-cell">Cobertura</TableHead>
+                        <TableHead>Comprar</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dashData.itensComprar.map((it: any) => (
+                        <TableRow key={it.id}>
+                          <TableCell className="font-medium text-sm">
+                            {it.nome}
+                            {it.fornecedor && <p className="text-xs text-gray-400">{it.fornecedor}</p>}
+                          </TableCell>
+                          <TableCell className="text-sm text-red-600 font-semibold">{Number(it.atual).toFixed(3)} {it.unidade}</TableCell>
+                          <TableCell className="text-sm">{Number(it.minimo).toFixed(3)} {it.unidade}</TableCell>
+                          <TableCell className="text-sm hidden sm:table-cell">{it.consumoMedioDia > 0 ? `${it.consumoMedioDia.toFixed(3)} ${it.unidade}` : "—"}</TableCell>
+                          <TableCell className="text-sm hidden sm:table-cell">{it.coberturaDias !== null ? `${it.coberturaDias} dias` : "—"}</TableCell>
+                          <TableCell className="text-sm font-bold text-orange-600">{Number(it.sugerido).toFixed(3)} {it.unidade}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-xs"
+                              onClick={() => {
+                                const mat = materiais.find((m) => m.id === it.id);
+                                if (mat) { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }
+                              }}
+                            >
+                              <ArrowUp className="h-3 w-3 mr-1" /> Comprar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Atenção ao seu estoque */}
+          {dashData && dashData.alertas.length > 0 && (
+            <Card className="border-amber-200">
               <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm text-red-700 flex items-center gap-2">
+                <CardTitle className="text-sm text-amber-700 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
-                  Produtos que precisam ser comprados ({criticosList.length})
+                  Atenção ao seu estoque ({dashData.alertas.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="space-y-2">
-                  {criticosList.map((mat) => (
-                    <div key={mat.id} className="flex items-center justify-between p-2 bg-red-50 rounded-lg">
+                  {dashData.alertas.map((a: any) => (
+                    <div key={a.id} className="flex items-center justify-between p-2 bg-amber-50 rounded-lg">
                       <div>
-                        <p className="text-sm font-medium">{mat.nome}</p>
+                        <p className="text-sm font-medium">{a.nome}</p>
                         <p className="text-xs text-gray-500">
-                          Atual: <span className="text-red-600 font-semibold">{Number(mat.quantidadeAtual).toFixed(3)} {mat.unidade}</span>
-                          {" / "}Mínimo: {Number(mat.quantidadeMin).toFixed(3)} {mat.unidade}
+                          {a.situacao} · Atual: {Number(a.atual).toFixed(3)} {a.unidade}
+                          {Number(a.minimo) > 0 && ` · Mínimo: ${Number(a.minimo).toFixed(3)} ${a.unidade}`}
                         </p>
                       </div>
                       <Button
                         size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-xs"
-                        onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }}
+                        variant="outline"
+                        className="text-xs"
+                        onClick={() => {
+                          const mat = materiais.find((m) => m.id === a.id);
+                          if (mat) { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }
+                        }}
                       >
-                        <ArrowUp className="h-3 w-3 mr-1" /> Comprar
+                        {a.acao}
                       </Button>
                     </div>
                   ))}
@@ -561,74 +790,16 @@ export function EstoqueClient() {
                     </TableHeader>
                     <TableBody>
                       {materiais.map((mat) => (
-                        <TableRow key={mat.id} className={isCritico(mat) ? "bg-red-50" : ""}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{mat.nome}</p>
-                              {mat.descricao && <p className="text-xs text-gray-400 hidden sm:block">{mat.descricao}</p>}
-                              {mat.tamEmbalagem && (
-                                <p className="text-xs text-gray-400 hidden lg:block">
-                                  Emb: {Number(mat.tamEmbalagem)}{mat.unidadeEmbalagem || mat.unidade}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-500 hidden sm:table-cell">{mat.categoria}</TableCell>
-                          <TableCell className="text-sm">{mat.unidade}</TableCell>
-                          <TableCell>
-                            <span className={`font-semibold text-sm ${isCritico(mat) ? "text-red-600" : "text-gray-900"}`}>
-                              {Number(mat.quantidadeAtual).toFixed(3)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs text-gray-500 hidden sm:table-cell">
-                            {Number(mat.quantidadeMin) > 0 ? Number(mat.quantidadeMin).toFixed(3) : "-"}
-                          </TableCell>
-                          <TableCell className="text-sm hidden md:table-cell">
-                            {mat.custoUnitario
-                              ? <span>{formatCurrency(Number(mat.custoUnitario))}<span className="text-gray-400 text-xs">/{mat.unidade}</span></span>
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="text-sm font-semibold text-green-700 hidden md:table-cell">
-                            {mat.custoUnitario ? formatCurrency(Number(mat.quantidadeAtual) * Number(mat.custoUnitario)) : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {Number(mat.quantidadeAtual) === 0 ? (
-                              <Badge variant="destructive" className="text-xs">Zerado</Badge>
-                            ) : isCritico(mat) ? (
-                              <Badge variant="destructive" className="text-xs whitespace-nowrap">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                <span className="hidden sm:inline">Baixo</span>
-                                <span className="sm:hidden">!</span>
-                              </Badge>
-                            ) : (
-                              <Badge variant="success" className="text-xs">OK</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button size="icon" variant="outline" className="h-7 w-7 text-green-600 border-green-200" title="Entrada"
-                                onClick={() => { setOpenMov(mat); setMovForm({ tipo: "ENTRADA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }}>
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="icon" variant="outline" className="h-7 w-7 text-red-500 border-red-200" title="Saída"
-                                onClick={() => { setOpenMov(mat); setMovForm({ tipo: "SAIDA", quantidade: "", motivo: "", nrEmbalagens: "", tamEmbalagem: "", valorEmbalagem: "", valorKg: "" }); }}>
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="icon" variant="outline" className="h-7 w-7 text-gray-500" title="Histórico"
-                                onClick={() => abrirHistorico(mat)}>
-                                <History className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="icon" variant="outline" className="h-7 w-7 text-blue-600 border-blue-200" title="Editar"
-                                onClick={() => abrirEditar(mat)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="icon" variant="outline" className="h-7 w-7 text-gray-400 hover:text-red-600 hover:border-red-200" title="Remover"
-                                onClick={() => setOpenRemover(mat)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                        <MaterialRow
+                          key={mat.id}
+                          mat={mat}
+                          isCritico={isCritico}
+                          onEditar={abrirEditar}
+                          onHistorico={abrirHistorico}
+                          onEntrada={onEntrada}
+                          onSaida={onSaida}
+                          onRemover={setOpenRemover}
+                        />
                       ))}
                     </TableBody>
                   </Table>
