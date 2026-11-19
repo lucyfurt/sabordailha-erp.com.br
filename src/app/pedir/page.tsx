@@ -25,6 +25,7 @@ export default function PedirPage() {
   const [etapa, setEtapa] = useState<"cardapio" | "dados">("cardapio");
   const [form, setForm] = useState({
     nomeCliente: "",
+    whatsapp: "",
     tipoPedido: "RETIRADA" as "RETIRADA" | "DELIVERY",
     endereco: "",
     localizacao: "",
@@ -87,6 +88,7 @@ export default function PedirPage() {
   async function enviarPedido() {
     setErro("");
     if (!form.nomeCliente.trim()) { setErro("Informe seu nome"); return; }
+    if (!form.whatsapp.trim()) { setErro("Informe seu WhatsApp para contato"); return; }
     if (carrinho.length === 0) { setErro("Adicione pelo menos um item"); return; }
 
     setEnviando(true);
@@ -100,7 +102,7 @@ export default function PedirPage() {
           endereco: form.tipoPedido === "DELIVERY" ? form.endereco : undefined,
           localizacao: form.tipoPedido === "DELIVERY" ? form.localizacao : undefined,
           horarioEntrega: form.tipoPedido === "DELIVERY" ? form.horarioEntrega : undefined,
-          observacao: form.observacao || undefined,
+          observacao: `WhatsApp: ${form.whatsapp.trim()}${form.observacao ? `\n${form.observacao}` : ""}`,
           itens: carrinho.map((i) => ({
             produtoId: i.produtoId,
             quantidade: i.quantidade,
@@ -285,6 +287,20 @@ export default function PedirPage() {
                   onChange={(e) => setForm((f) => ({ ...f, nomeCliente: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  WhatsApp para contato *
+                </label>
+                <input
+                  type="tel"
+                  placeholder="(98) 99999-9999"
+                  value={form.whatsapp}
+                  onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                />
+                <p className="text-xs text-gray-400 mt-1">Para confirmarmos seu pedido e combinar detalhes</p>
               </div>
 
               {/* Tipo do pedido */}
