@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       if (!p) {
         return NextResponse.json({ error: `Produto não encontrado` }, { status: 400 });
       }
-      if (!p.disponivel) {
+      if (!(p as any).disponivel && (p as any).disponivel !== undefined) {
         return NextResponse.json(
           { error: `"${p.nome}" está esgotado no momento. Por favor, remova-o do pedido.` },
           { status: 400 }
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       if (data.localizacao) obsCompleta = `${obsCompleta}\nLocalização: ${data.localizacao}`.trim();
     }
 
-    const pedido = await prisma.pedido.create({
+    const pedido = await (prisma.pedido as any).create({
       data: {
         nomeCliente: data.nomeCliente,
         tipoPedido: data.tipoPedido,

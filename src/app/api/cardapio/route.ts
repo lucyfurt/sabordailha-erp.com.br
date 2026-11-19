@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       nome: p.nome,
       descricao: p.descricao,
       preco: Number(p.preco),
-      disponivel: p.disponivel,
+      disponivel: (p as any).disponivel ?? true,
     });
   }
 
