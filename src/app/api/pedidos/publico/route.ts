@@ -61,25 +61,52 @@ export async function POST(req: NextRequest) {
       return { produtoId: item.produtoId, quantidade: item.quantidade, precoUnit, subtotal, observacao: item.observacao };
     });
 
-    // Montar observação completa incluindo endereço/localização
-    let obsCompleta = data.observacao || "";
+    // Montar observação completa incluindo tipo, endereço/localização e horário
+    // (campos tipoPedido/horarioEntrega/taxaEntrega só existem após db:push)
+    let obsCompleta = "";
     if (data.tipoPedido === "DELIVERY") {
-      if (data.endereco) obsCompleta = `Endereço: ${data.endereco}\n${obsCompleta}`.trim();
-      if (data.localizacao) obsCompleta = `${obsCompleta}\nLocalização: ${data.localizacao}`.trim();
+      obsCompleta += `[DELIVERY]`;
+      if (data.horarioEntrega) obsCompleta += ` Horário: ${data.horarioEntrega}`;
+      if (data.endereco) obsCompleta += `\nEndereço: ${data.endereco}`;
+      if (data.localizacao) obsCompleta += `\nLocalização: ${data.localizacao}`;
+    } else {
+      obsCompleta += `[RETIRADA]`;
     }
+    if (data.observacao) obsCompleta += `\n${data.observacao}`;
+    obsCompleta = obsCompleta.trim();
 
-    const pedido = await (prisma.pedido as any).create({
-      data: {
-        nomeCliente: data.nomeCliente,
-        tipoPedido: data.tipoPedido,
-        horarioEntrega: data.tipoPedido === "DELIVERY" ? (data.horarioEntrega || null) : null,
-        taxaEntrega: 0, // taxa a combinar — atendente ajusta se necessário
-        observacao: obsCompleta || null,
-        total,
-        itens: { create: itensData },
-      },
-      include: { itens: { include: { produto: { select: { nome: true } } } } },
-    });
+    // Tenta criar com os campos novos; se o banco ainda não tiver as colunas,
+    // cria só com os campos que sempre existiram.
+    let pedido: any;
+    try {
+      pedido = await (prisma.pedido as any).create({
+        data: {
+          nomeCliente: data.nomeCliente,
+          tipoPedido: data.tipoPedido,
+          horarioEntrega: data.tipoPedido === "DELIVERY" ? (data.horarioEntrega || null) : null,
+          taxaEntrega: 0,
+          observacao: obsCompleta || null,
+          total,
+          itens: { create: itensData },
+        },
+        include: { itens: { include: { produto: { select: { nome: true } } } } },
+      });
+    } catch (e: any) {
+      // Fallback: banco ainda sem as colunas novas — cria sem elas
+      if (e.message?.includes("Unknown argument")) {
+        pedido = await prisma.pedido.create({
+          data: {
+            nomeCliente: data.nomeCliente,
+            observacao: obsCompleta || null,
+            total,
+            itens: { create: itensData },
+          },
+          include: { itens: { include: { produto: { select: { nome: true } } } } },
+        });
+      } else {
+        throw e;
+      }
+    }
 
     return NextResponse.json({ pedidoId: pedido.id, numero: pedido.numero, total }, { status: 201 });
   } catch (err: any) {
