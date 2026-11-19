@@ -97,6 +97,7 @@ model Produto {
   categoriaId   String
   imagem        String?
   ativo         Boolean  @default(true)
+  disponivel    Boolean  @default(true)
   custoEstimado Decimal? @db.Decimal(10, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

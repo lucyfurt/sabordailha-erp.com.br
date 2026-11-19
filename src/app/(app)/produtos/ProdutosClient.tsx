@@ -37,6 +37,7 @@ type Produto = {
   descricao?: string;
   preco: number;
   ativo: boolean;
+  disponivel: boolean;
   categoria: { id: string; nome: string; icone?: string };
   custoEstimado?: number;
 };
@@ -179,6 +180,15 @@ export function ProdutosClient() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ativo: !produto.ativo }),
+    });
+    fetchProdutos();
+  }
+
+  async function toggleDisponivel(produto: Produto) {
+    await fetch(`/api/produtos/${produto.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ disponivel: !produto.disponivel }),
     });
     fetchProdutos();
   }
@@ -352,12 +362,27 @@ export function ProdutosClient() {
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-medium text-sm leading-tight">{produto.nome}</h4>
-                            <Badge
-                              variant={produto.ativo ? "success" : "secondary"}
-                              className="text-xs ml-1 flex-shrink-0"
-                            >
-                              {produto.ativo ? "Ativo" : "Inativo"}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1 ml-1 flex-shrink-0">
+                              <Badge
+                                variant={produto.ativo ? "success" : "secondary"}
+                                className="text-xs"
+                              >
+                                {produto.ativo ? "Ativo" : "Inativo"}
+                              </Badge>
+                              {produto.ativo && (
+                                <button
+                                  onClick={() => toggleDisponivel(produto)}
+                                  title={produto.disponivel ? "Marcar como esgotado" : "Marcar como disponível"}
+                                  className={`text-xs px-2 py-0.5 rounded-full font-medium border transition-colors ${
+                                    produto.disponivel
+                                      ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                                      : "bg-red-50 text-red-600 border-red-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                                  }`}
+                                >
+                                  {produto.disponivel ? "✓ Disponível" : "✗ Esgotado"}
+                                </button>
+                              )}
+                            </div>
                           </div>
                           {produto.descricao && (
                             <p className="text-xs text-gray-400 mb-3 line-clamp-2">

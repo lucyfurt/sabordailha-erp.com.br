@@ -10,6 +10,7 @@ const updateSchema = z.object({
   preco: z.number().positive().optional(),
   categoriaId: z.string().optional(),
   ativo: z.boolean().optional(),
+  disponivel: z.boolean().optional(),
   custoEstimado: z.number().optional(),
 });
 
