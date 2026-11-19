@@ -23,16 +23,20 @@ function ConfirmadoConteudo({ id }: { id: string }) {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const isDelivery = pedido
+    ? (pedido.tipoPedido === "DELIVERY" || pedido.observacao?.startsWith("[DELIVERY]"))
+    : false;
+
   const whatsappMsg = pedido
     ? encodeURIComponent(
         `Olá! Fiz um pedido pelo site 🌊\n\n` +
         `*Pedido #${pedido.numero}*\n` +
-        (pedido.tipoPedido === "DELIVERY" ? `📦 Delivery\n` : `🏃 Retirada\n`) +
+        (isDelivery ? `📦 Delivery\n` : `🏃 Retirada\n`) +
         pedido.itens.map((i: any) =>
           `• ${i.quantidade}x ${i.produto?.nome} — ${formatCurrency(Number(i.subtotal))}`
         ).join("\n") +
         `\n\n*Total dos itens: ${formatCurrency(Number(pedido.total))}*` +
-        (pedido.tipoPedido === "DELIVERY" ? `\n\n_(Taxa de entrega a combinar)_` : "") +
+        (isDelivery ? `\n\n_(Taxa de entrega a combinar)_` : "") +
         (pedido.observacao ? `\n\nObs: ${pedido.observacao}` : "")
       )
     : encodeURIComponent(`Olá! Acabei de fazer o pedido #${numero ?? ""} pelo site 🌊`);
@@ -65,11 +69,19 @@ function ConfirmadoConteudo({ id }: { id: string }) {
         <div className="bg-white rounded-2xl shadow p-5 space-y-3">
           <h3 className="font-semibold text-gray-800 text-sm">Resumo do pedido</h3>
 
-          <div className={`flex items-center gap-2 p-3 rounded-xl text-sm ${pedido.tipoPedido === "DELIVERY" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"}`}>
-            {pedido.tipoPedido === "DELIVERY"
+          <div className={`flex items-center gap-2 p-3 rounded-xl text-sm ${
+            (pedido.tipoPedido === "DELIVERY" || pedido.observacao?.startsWith("[DELIVERY]"))
+              ? "bg-blue-50 text-blue-700"
+              : "bg-green-50 text-green-700"
+          }`}>
+            {(pedido.tipoPedido === "DELIVERY" || pedido.observacao?.startsWith("[DELIVERY]"))
               ? <Truck className="h-4 w-4 flex-shrink-0" />
               : <Package className="h-4 w-4 flex-shrink-0" />}
-            <span className="font-medium">{pedido.tipoPedido === "DELIVERY" ? "Delivery" : "Retirada no local"}</span>
+            <span className="font-medium">
+              {(pedido.tipoPedido === "DELIVERY" || pedido.observacao?.startsWith("[DELIVERY]"))
+                ? "Delivery"
+                : "Retirada no local"}
+            </span>
             {pedido.tipoPedido === "DELIVERY" && pedido.horarioEntrega && (
               <span className="ml-auto text-xs flex items-center gap-1">
                 <Clock className="h-3 w-3" /> {pedido.horarioEntrega}
@@ -93,7 +105,7 @@ function ConfirmadoConteudo({ id }: { id: string }) {
             <span className="text-orange-600">{formatCurrency(Number(pedido.total))}</span>
           </div>
 
-          {pedido.tipoPedido === "DELIVERY" && (
+          {(pedido.tipoPedido === "DELIVERY" || pedido.observacao?.startsWith("[DELIVERY]")) && (
             <p className="text-xs text-gray-400 text-center">
               + Taxa de entrega a combinar com o atendente
             </p>
