@@ -4,6 +4,9 @@ import { getHorarioFuncionamento } from "@/lib/horario";
 
 // Rota pública — sem autenticação.
 // Retorna produtos ativos agrupados por categoria, com status de abertura.
+// Cache desabilitado para refletir mudanças de disponibilidade em tempo real.
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const { aberto, mensagem } = getHorarioFuncionamento();
 

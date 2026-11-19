@@ -35,7 +35,7 @@ export default function PedirPage() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    fetch("/api/cardapio")
+    fetch("/api/cardapio", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         setStatus({ aberto: data.aberto, mensagem: data.mensagem });
