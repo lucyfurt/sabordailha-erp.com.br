@@ -273,7 +273,29 @@ export function PedidosClient() {
 
                 <div className="space-y-1 mb-3 text-sm text-gray-600">
                   {pedido.observacao && (
-                    <p className="text-xs text-gray-500 italic mb-1">"{pedido.observacao}"</p>
+                    <div className="text-xs text-gray-500 italic mb-1 space-y-0.5">
+                      {pedido.observacao.split("\n").map((linha: string, i: number) => {
+                        // Detecta linha "WhatsApp: NUMERO" e vira link clicável
+                        const matchZap = linha.match(/^WhatsApp:\s*(.+)$/i);
+                        if (matchZap) {
+                          const numero = matchZap[1].replace(/\D/g, "");
+                          const link = `https://wa.me/55${numero}`;
+                          return (
+                            <p key={i}>
+                              <a
+                                href={link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="not-italic inline-flex items-center gap-1 text-green-600 font-semibold hover:underline"
+                              >
+                                📱 WhatsApp: {matchZap[1]}
+                              </a>
+                            </p>
+                          );
+                        }
+                        return <p key={i}>"{linha}"</p>;
+                      })}
+                    </div>
                   )}
                   {pedido.enderecoEntrega && (
                     <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
