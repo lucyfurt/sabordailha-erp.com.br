@@ -25,8 +25,11 @@ export async function GET(req: NextRequest) {
   const where: any = {};
   if (categoriaId) where.categoriaId = categoriaId;
   if (search) where.nome = { contains: search, mode: "insensitive" };
-  // Por padrão mostra só ativos; passa ?ativo=false para ver inativos
-  where.ativo = ativo === "false" ? false : true;
+  // Só filtra por ativo se o parâmetro for passado explicitamente.
+  // O painel admin não passa nada → vê todos (ativos e inativos).
+  // O cardápio público passa ?ativo=true → vê só ativos.
+  if (ativo === "true") where.ativo = true;
+  if (ativo === "false") where.ativo = false;
 
   const produtos = await prisma.produto.findMany({
     where,
