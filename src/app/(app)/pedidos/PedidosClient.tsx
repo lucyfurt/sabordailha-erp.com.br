@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Truck, ShoppingBag, Pencil } from "lucide-react";
+import { Plus, Search, RefreshCw, ChefHat, CheckCircle, XCircle, CreditCard, Trash2, Truck, ShoppingBag, Pencil, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -211,6 +211,84 @@ export function PedidosClient() {
 
   const statusBadgeColors = ["ABERTO", "EM_PREPARO", "PRONTO"];
 
+  function imprimirPedido(pedido: any) {
+    const linhas = pedido.itens.map((it: any) =>
+      `<tr>
+        <td style="padding:1px 0">${it.quantidade}x ${it.produto?.nome || ""}</td>
+        <td style="text-align:right;padding:1px 0">R$${Number(it.subtotal).toFixed(2)}</td>
+      </tr>`
+    ).join("");
+
+    const obs = pedido.observacao
+      ? pedido.observacao.split("\n")
+          .map((l: string) => `<p style="margin:1px 0">${l}</p>`)
+          .join("")
+      : "";
+
+    const isDelivery = pedido.formaEntrega === "DELIVERY"
+      || pedido.observacao?.startsWith("[DELIVERY]");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  @page { margin: 0; size: 58mm auto; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: monospace;
+    font-size: 11px;
+    width: 48mm;
+    margin: 2mm;
+    color: #000;
+  }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .big { font-size: 14px; font-weight: bold; }
+  .line { border-top: 1px dashed #000; margin: 3px 0; }
+  table { width: 100%; border-collapse: collapse; }
+  td { font-size: 11px; vertical-align: top; }
+  .total { font-size: 13px; font-weight: bold; }
+</style>
+</head>
+<body>
+  <p class="center bold" style="font-size:13px">SABOR DA ILHA</p>
+  <p class="center" style="font-size:10px">Peixes e Frutos do Mar</p>
+  <div class="line"></div>
+  <p class="center big">PEDIDO #${pedido.numero}</p>
+  <p class="center" style="font-size:10px">${new Date(pedido.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p>
+  <div class="line"></div>
+  <p class="bold">${pedido.nomeCliente || "Cliente"}</p>
+  <p>${isDelivery ? "DELIVERY" : "RETIRADA"}</p>
+  ${isDelivery && pedido.enderecoEntrega ? `<p style="font-size:10px">${pedido.enderecoEntrega}</p>` : ""}
+  ${pedido.horarioEntrega ? `<p style="font-size:10px">Horario: ${pedido.horarioEntrega}</p>` : ""}
+  <div class="line"></div>
+  <table><tbody>${linhas}</tbody></table>
+  <div class="line"></div>
+  ${Number(pedido.taxaEntrega) > 0
+    ? `<table><tr><td>Taxa de entrega</td><td style="text-align:right">R$${Number(pedido.taxaEntrega).toFixed(2)}</td></tr></table>`
+    : ""}
+  <table>
+    <tr>
+      <td class="total">TOTAL</td>
+      <td class="total" style="text-align:right">R$${Number(pedido.total).toFixed(2)}</td>
+    </tr>
+  </table>
+  ${obs ? `<div class="line"></div><p class="bold" style="font-size:10px">OBS:</p>${obs}` : ""}
+  <div class="line"></div>
+  <p class="center" style="font-size:10px">Obrigado pela preferencia!</p>
+</body>
+</html>`;
+
+    const janela = window.open("", "_blank", "width=400,height=600");
+    if (!janela) return;
+    janela.document.write(html);
+    janela.document.close();
+    janela.focus();
+    janela.print();
+    janela.close();
+  }
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -363,6 +441,17 @@ export function PedidosClient() {
                       Remover
                     </button>
                   </div>
+
+                  {/* Imprimir — aparece quando o pedido está pronto ou além */}
+                  {["PRONTO", "ENTREGUE", "PAGO", "PAGAMENTO_PENDENTE"].includes(pedido.status) && (
+                    <button
+                      onClick={() => imprimirPedido(pedido)}
+                      className="w-full px-2.5 py-2 rounded-md text-gray-600 hover:bg-gray-50 border border-gray-200 text-xs font-medium flex items-center justify-center gap-1"
+                    >
+                      <Printer className="h-3 w-3" />
+                      Imprimir comprovante
+                    </button>
+                  )}
                 </div>
               </CardContent>
             </Card>
