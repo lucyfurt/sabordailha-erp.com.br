@@ -2,7 +2,7 @@
 // Aceita pedidos de segunda a sábado, das 10h às 15h (horário de Brasília).
 
 const ABERTURA = 10; // hora de abertura
-const FECHAMENTO = 23; // hora de fechamento (exclusive) — mude para 15 em produção
+const FECHAMENTO = 15; // hora de fechamento (exclusive)
 const DIAS_FUNCIONAMENTO = [1, 2, 3, 4, 5, 6]; // 0=dom, 1=seg, ..., 6=sáb
 
 export function getHorarioFuncionamento(): { aberto: boolean; mensagem: string } {

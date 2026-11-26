@@ -156,6 +156,7 @@ export default function PedirPage() {
             <h2 className="text-lg font-semibold text-gray-700">Fora do horário</h2>
             <p className="text-gray-500 mt-1 text-sm">{status?.mensagem}</p>
             <p className="text-gray-400 text-xs mt-3">Segunda a sábado das 10h às 15h</p>
+            <p className="text-gray-400 text-xs mt-1">⏱ Pedidos saem a partir das 12h</p>
           </div>
         ) : etapa === "cardapio" ? (
           <>
